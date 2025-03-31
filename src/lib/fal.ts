@@ -3,7 +3,13 @@
 import { createFalClient } from "@fal-ai/client";
 
 export const fal = createFalClient({
-  credentials: () => localStorage?.getItem("falKey") as string,
+  credentials: () => {
+    // Check if we're in a browser environment where localStorage exists
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return localStorage?.getItem("falKey") as string;
+    }
+    return ""; // Return empty string for SSR
+  },
   proxyUrl: "/api/fal",
 });
 
@@ -28,7 +34,7 @@ export type ApiInfo = {
   initialInput?: Record<string, unknown>;
   cameraControl?: boolean;
   imageForFrame?: boolean;
-  category: "image" | "video" | "music" | "voiceover" | "text";
+  category: "image" | "video" | "music" | "voiceover" | "text" | "img2img";
   prompt?: boolean;
 };
 
@@ -42,12 +48,19 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     inputAsset: [],
   },
   {
-    endpointId: "image-to-image",
+    endpointId: "fal-ai/stable-diffusion-xl-img2img",
     label: "Image to Image",
     description: "Transform existing images with AI",
     cost: "",
     category: "image",
     inputAsset: ["image"],
+    initialInput: {
+      prompt: "",
+      negative_prompt: "",
+      guidance_scale: 7.5,
+      num_inference_steps: 30,
+      strength: 0.7,
+    },
   },
   {
     endpointId: "fal-ai/flux/dev",
@@ -229,4 +242,25 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     prompt: false,
     inputAsset: ["video"],
   },
+  {
+    endpointId: "fal-ai/flux/dev/image-to-image",
+    label: "Image to Image",
+    description: "Transform existing images with AI",
+    cost: "",
+    category: "img2img",
+    inputAsset: ["image"],
+    initialInput: {
+      prompt: "",
+    },
+  },
+  {
+    endpointId: "rundiffusion-fal/juggernaut-flux/pro/image-to-image",
+    label: "juggernaut flux pro Image to Image",
+    description: "Juggernaut Pro Flux by RunDiffusion is the flagship Juggernaut model rivaling some of the most advanced image models available",
+    cost: "",
+    inputAsset: ["image"],
+    category: "img2img",
+    prompt: true,
+  },
+
 ];

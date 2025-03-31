@@ -85,18 +85,21 @@ export default function BottomBar() {
     mutationFn: async (media: MediaItem) => {
       const tracks = await db.tracks.tracksByProject(media.projectId);
       let trackType: VideoTrackType;
-      
+
       if (media.mediaType === "image") {
         trackType = "video";
       } else if (media.mediaType === "text") {
         trackType = "text";
-      } else if (media.mediaType === "music" || media.mediaType === "voiceover") {
+      } else if (
+        media.mediaType === "music" ||
+        media.mediaType === "voiceover"
+      ) {
         trackType = media.mediaType;
       } else {
         // Default to video for any other type
         trackType = "video";
       }
-      
+
       let track = tracks.find((t) => t.type === trackType);
       if (!track) {
         const id = await db.tracks.create({
@@ -127,7 +130,7 @@ export default function BottomBar() {
 
       // Create appropriate keyframe data based on media type
       let keyframeData: KeyFrameData;
-      
+
       if (media.mediaType === "text") {
         keyframeData = {
           type: "text",
@@ -137,7 +140,7 @@ export default function BottomBar() {
             color: "white",
             fontFamily: "sans-serif",
             position: "center",
-          }
+          },
         };
       } else {
         keyframeData = {

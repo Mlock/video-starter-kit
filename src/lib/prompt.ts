@@ -25,9 +25,18 @@ any extra content and/or explanation. **DO NOT ADD markdown** or quotes, return 
 
 export async function enhancePrompt(
   prompt: string,
-  options: EnhancePromptOptions = { type: "video" },
-) {
+  options: {
+    type?: "image" | "video" | "text" | "music" | "voiceover" | "img2img";
+    project?: VideoProject;
+  } = {},
+): Promise<string> {
   const { type, project } = options;
+  let prompt_type = options.type || "image";
+  
+  if (prompt_type === "img2img") {
+    prompt_type = "image"; // Use image prompt enhancement for img2img
+  }
+  
   const projectInfo = !project
     ? ""
     : `
@@ -42,7 +51,7 @@ export async function enhancePrompt(
     input: {
       system_prompt: SYSTEM_PROMPT,
       prompt: `
-        Create a prompt for generating a ${type} via AI inference. Here's the context:
+        Create a prompt for generating a ${prompt_type} via AI inference. Here's the context:
         ${projectInfo}
         ${promptInfo}
       `.trim(),

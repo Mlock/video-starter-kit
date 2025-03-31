@@ -59,7 +59,6 @@ import VideoFrameSelector from "./video-frame-selector";
 import { Slider } from "@/components/ui/slider";
 import { useDropzone } from "react-dropzone";
 import { Loader2, Upload } from "lucide-react";
-import { useDebounce } from "@/hooks/use-debounce";
 import { v4 as uuidv4 } from "uuid";
 
 type ModelEndpointPickerProps = {
@@ -95,7 +94,8 @@ function ModelEndpointPicker({
 }
 
 // Add Google Fonts API URL
-const GOOGLE_FONTS_API = "https://www.googleapis.com/webfonts/v1/webfonts?key=YOUR_API_KEY";
+const GOOGLE_FONTS_API =
+  "https://www.googleapis.com/webfonts/v1/webfonts?key=YOUR_API_KEY";
 
 // Popular Google Fonts for video text
 const POPULAR_FONTS = [
@@ -172,29 +172,30 @@ export default function RightPanel({
   const mediaType = useVideoProjectStore((s) => s.generateMediaType);
   const setMediaType = useVideoProjectStore((s) => s.setGenerateMediaType);
 
-  const endpoint = useMemo(
-    () => {
-      const foundEndpoint = AVAILABLE_ENDPOINTS.find(
-        (endpoint) => endpoint.endpointId === endpointId,
-      );
-      
-      // Ensure every endpoint has inputAsset as at least an empty array
-      if (foundEndpoint && !foundEndpoint.inputAsset) {
-        return {
-          ...foundEndpoint,
-          inputAsset: [],
-        };
-      }
-      
-      return foundEndpoint;
-    },
-    [endpointId],
-  );
+  const endpoint = useMemo(() => {
+    const foundEndpoint = AVAILABLE_ENDPOINTS.find(
+      (endpoint) => endpoint.endpointId === endpointId,
+    );
+
+    // Ensure every endpoint has inputAsset as at least an empty array
+    if (foundEndpoint && !foundEndpoint.inputAsset) {
+      return {
+        ...foundEndpoint,
+        inputAsset: [],
+      };
+    }
+
+    return foundEndpoint;
+  }, [endpointId]);
   const handleMediaTypeChange = (mediaType: string) => {
     setMediaType(mediaType as MediaType);
     const endpoint = AVAILABLE_ENDPOINTS.find(
-      (endpoint) => endpoint.category === mediaType || 
-      (mediaType === "img2img" && endpoint.endpointId === "image-to-image")
+      (endpoint) =>
+        endpoint.category === mediaType ||
+        (mediaType === "img2img" && (
+          endpoint.endpointId === "rundiffusion-fal/juggernaut-flux/pro/image-to-image" ||
+          endpoint.category === "img2img"
+        ))
     );
 
     const initialInput = endpoint?.initialInput || {};
@@ -213,8 +214,14 @@ export default function RightPanel({
       // Use the text endpoint directly
       setEndpointId("text");
     } else if (mediaType === "img2img") {
-      setGenerateData({ image: null, ...initialInput });
-      setEndpointId("image-to-image");
+      // Set default values for image-to-image transformation
+      setGenerateData({ 
+        image: null, 
+        prompt: "",
+      });
+      
+      // Use Juggernaut img2img endpoint as default
+      setEndpointId("rundiffusion-fal/juggernaut-flux/pro/image-to-image");
     } else if (
       (mediaType === "video" &&
         endpoint?.endpointId === "fal-ai/hunyuan-video") ||
@@ -313,7 +320,7 @@ export default function RightPanel({
       generateData.image && mediaType === "video"
         ? `${endpointId}/image-to-video`
         : endpointId,
-    mediaType: mediaType === "img2img" ? "image" : mediaType as any,
+    mediaType: mediaType === "img2img" ? "image" : (mediaType as any),
     input: {
       ...(endpoint?.initialInput || {}),
       ...mapInputKey(input, endpoint?.inputMap || {}),
@@ -380,8 +387,18 @@ export default function RightPanel({
     }
 
     if (mediaType === "img2img" && generateData.image) {
-      // For image-to-image, we use the same endpoint but with the image input
-      await createJob.mutateAsync({} as any, {
+      // Build the simplest img2img input
+      const img2imgInput = {
+        prompt: generateData.prompt || "",
+        image_url: generateData.image
+      };
+      
+      await createJob.mutateAsync({
+        projectId,
+        endpointId,
+        mediaType: "image",
+        input: img2imgInput
+      } as any, {
         onSuccess: async () => {
           if (!createJob.isError) {
             handleOnOpenChange(false);
@@ -391,7 +408,8 @@ export default function RightPanel({
           console.warn("Failed to create img2img job", error);
           toast({
             title: "Failed to transform image",
-            description: "Please ensure you've set your FAL KEY in the settings.",
+            description:
+              "Please ensure you've set your FAL KEY in the settings.",
           });
         },
       });
@@ -474,7 +492,12 @@ export default function RightPanel({
         projectId,
         kind: "uploaded",
         createdAt: Date.now(),
-        mediaType: outputType as "video" | "image" | "music" | "voiceover" | "text",
+        mediaType: outputType as
+          | "video"
+          | "image"
+          | "music"
+          | "voiceover"
+          | "text",
         status: "completed",
         url: file.url,
       };
@@ -632,7 +655,8 @@ export default function RightPanel({
                   )}
                 </div>
                 {(tab === "generation" ||
-                  tab !== `asset-${getAssetType(asset)}`) && (
+                  tab !== `asset-${getAssetType(asset)}`) && 
+                  !(mediaType === "img2img" && getAssetType(asset) === "image") && (
                   <>
                     {!generateData[getAssetKey(asset)] && (
                       <div className="flex flex-col gap-2 justify-between">
@@ -732,7 +756,11 @@ export default function RightPanel({
             <div className="relative bg-border rounded-lg pb-10 placeholder:text-base w-full  resize-none">
               <Textarea
                 className="text-base shadow-none focus:!ring-0 placeholder:text-base w-full h-32 resize-none"
-                placeholder={mediaType === "img2img" ? "Describe how you want to transform the image..." : "Imagine..."}
+                placeholder={
+                  mediaType === "img2img"
+                    ? "Describe how you want to transform the image..."
+                    : "Imagine..."
+                }
                 value={generateData.prompt}
                 rows={3}
                 onChange={(e) => setGenerateData({ prompt: e.target.value })}
@@ -754,6 +782,45 @@ export default function RightPanel({
                   </Button>
                 </div>
               </WithTooltip>
+            </div>
+          )}
+          {mediaType === "img2img" && (
+            <div className="space-y-4 mt-4">
+              {!generateData.image ? (
+                <ImgBox 
+                  onImageSelect={(file) => setGenerateData({ image: file })}
+                  isUploading={isUploading}
+                />
+              ) : (
+                <>
+                  <div className="relative border border-border rounded-md overflow-hidden">
+                    <img 
+                      src={typeof generateData.image === 'string' 
+                        ? generateData.image 
+                        : URL.createObjectURL(generateData.image)
+                      } 
+                      alt="Source image" 
+                      className="w-full h-auto"
+                    />
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="absolute top-2 right-2"
+                      onClick={() => setGenerateData({ image: null })}
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  
+                  <Button
+                    className="w-full mt-4"
+                    disabled={enhance.isPending || createJob.isPending}
+                    onClick={handleOnGenerate}
+                  >
+                    Transform Image
+                  </Button>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -823,7 +890,9 @@ export default function RightPanel({
                   <Textarea
                     placeholder="Enter your text..."
                     value={generateData.text || ""}
-                    onChange={(e) => setGenerateData({ ...generateData, text: e.target.value })}
+                    onChange={(e) =>
+                      setGenerateData({ ...generateData, text: e.target.value })
+                    }
                     className="min-h-[100px]"
                   />
                 </div>
@@ -845,7 +914,9 @@ export default function RightPanel({
                     <SelectContent>
                       {POPULAR_FONTS.map((font) => (
                         <SelectItem key={font.family} value={font.family}>
-                          <span style={{ fontFamily: font.family }}>{font.family}</span>
+                          <span style={{ fontFamily: font.family }}>
+                            {font.family}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -883,7 +954,10 @@ export default function RightPanel({
                       onChange={(e) =>
                         setGenerateData({
                           ...generateData,
-                          style: { ...generateData.style, color: e.target.value },
+                          style: {
+                            ...generateData.style,
+                            color: e.target.value,
+                          },
                         })
                       }
                       className="w-20 h-10 p-1"
@@ -894,7 +968,10 @@ export default function RightPanel({
                       onChange={(e) =>
                         setGenerateData({
                           ...generateData,
-                          style: { ...generateData.style, color: e.target.value },
+                          style: {
+                            ...generateData.style,
+                            color: e.target.value,
+                          },
                         })
                       }
                       className="flex-1"
@@ -944,14 +1021,24 @@ export default function RightPanel({
                 </div>
               </div>
             )}
+            
             <div className="flex flex-row gap-2">
-              <Button
-                className="w-full"
-                disabled={enhance.isPending || createJob.isPending}
-                onClick={handleOnGenerate}
-              >
-                {mediaType === "text" ? "Add Text" : mediaType === "img2img" ? "Transform Image" : "Generate"}
-              </Button>
+              {!(mediaType === "img2img" && generateData.image) && (
+                <Button
+                  className="w-full"
+                  disabled={
+                    enhance.isPending || 
+                    createJob.isPending || 
+                    (mediaType === "img2img" && !generateData.image)
+                  }
+                  onClick={handleOnGenerate}
+                >
+                  {mediaType === "text" 
+                    ? "Add Text"
+                    : "Generate"
+                  }
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -1013,5 +1100,49 @@ const SelectedAssetPreview = ({
         </div>
       )}
     </>
+  );
+};
+
+const ImgBox = ({ 
+  onImageSelect, 
+  isUploading 
+}: { 
+  onImageSelect: (file: File) => void; 
+  isUploading: boolean; 
+}) => {
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    accept: {
+      'image/*': []
+    },
+    onDrop: (acceptedFiles) => {
+      if (acceptedFiles?.length > 0) {
+        onImageSelect(acceptedFiles[0]);
+      }
+    }
+  });
+
+  return (
+    <div 
+      {...getRootProps()} 
+      className={cn(
+        "border-2 border-dashed rounded-md p-6 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2",
+        isDragActive ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground"
+      )}
+    >
+      <input {...getInputProps()} />
+      {isUploading ? (
+        <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+      ) : (
+        <Upload className="h-10 w-10 text-muted-foreground" />
+      )}
+      <div className="text-center space-y-1">
+        <p className="text-sm font-medium">
+          {isDragActive ? "Drop the image here" : "Drag & drop an image here"}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          or click to select from your files
+        </p>
+      </div>
+    </div>
   );
 };

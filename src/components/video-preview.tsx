@@ -103,10 +103,7 @@ const MainComposition: React.FC<VideoCompositionProps> = ({
             />
           )}
           {track.type === "text" && (
-            <TextTrackSequence
-              track={track}
-              frames={frames[track.id] || []}
-            />
+            <TextTrackSequence track={track} frames={frames[track.id] || []} />
           )}
           {(track.type === "music" || track.type === "voiceover") && (
             <AudioTrackSequence
@@ -200,12 +197,14 @@ const TextTrackSequence: React.FC<TrackSequenceProps> = ({ frames }) => {
 
         const style = frame.data.style || {};
         const position = style.position || "center";
-        
+
         return (
           <Sequence
             key={frame.id}
             from={Math.floor(frame.timestamp / (1000 / FPS))}
-            durationInFrames={Math.floor((frame.duration || 5000) / (1000 / FPS))}
+            durationInFrames={Math.floor(
+              (frame.duration || 5000) / (1000 / FPS),
+            )}
             premountFor={3000}
           >
             <div
@@ -215,7 +214,7 @@ const TextTrackSequence: React.FC<TrackSequenceProps> = ({ frames }) => {
                   "top-4": position === "top",
                   "top-1/2 -translate-y-1/2": position === "center",
                   "bottom-4": position === "bottom",
-                }
+                },
               )}
             >
               <div

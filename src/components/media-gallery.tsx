@@ -229,19 +229,23 @@ export function MediaGallerySheet({
                 <AudioPlayer media={selectedMedia} />
               )}
               {selectedMedia.mediaType === "text" && (
-                <div 
+                <div
                   className="animate-fade-scale-in bg-black/80 p-6 rounded-lg max-w-[90%] max-h-[90%] overflow-auto"
                   onClick={preventClose}
                 >
-                  <p 
+                  <p
                     style={{
                       fontSize: selectedMedia.metadata?.style?.fontSize || 48,
                       color: selectedMedia.metadata?.style?.color || "white",
-                      fontFamily: selectedMedia.metadata?.style?.fontFamily || "sans-serif",
+                      fontFamily:
+                        selectedMedia.metadata?.style?.fontFamily ||
+                        "sans-serif",
                       textAlign: "center",
                     }}
                   >
-                    {selectedMedia.url || selectedMedia.metadata?.text || "No text content"}
+                    {selectedMedia.url ||
+                      selectedMedia.metadata?.text ||
+                      "No text content"}
                   </p>
                 </div>
               )}

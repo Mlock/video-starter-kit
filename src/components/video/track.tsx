@@ -170,7 +170,10 @@ export function VideoTrackView({
   const projectId = useProjectId();
   const { data: mediaItems = [] } = useProjectMediaItems(projectId);
 
-  const media = frame.data.type === "text" ? undefined : mediaItems.find((item) => item.id === frame.data.mediaId);
+  const media =
+    frame.data.type === "text"
+      ? undefined
+      : mediaItems.find((item) => item.id === frame.data.mediaId);
   // TODO improve missing data
   if (!media && frame.data.type !== "text") return null;
 
@@ -191,7 +194,8 @@ export function VideoTrackView({
     return undefined;
   }, [media, mediaUrl]);
 
-  const label = frame.data.type === "text" ? "Text" : media?.mediaType ?? "unknown";
+  const label =
+    frame.data.type === "text" ? "Text" : (media?.mediaType ?? "unknown");
 
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -277,7 +281,7 @@ export function VideoTrackView({
       let newWidth = startWidth + (direction === "right" ? deltaX : -deltaX);
 
       const minDuration = 1000;
-      const mediaDuration = media ? resolveDuration(media) ?? 5000 : 5000;
+      const mediaDuration = media ? (resolveDuration(media) ?? 5000) : 5000;
       const maxDuration = Math.min(mediaDuration, 30000);
 
       const timelineElement = trackElement.closest(".timeline-container");
@@ -346,7 +350,9 @@ export function VideoTrackView({
                 (typeof trackIcons)[typeof track.type]
               >)}
               <span className="line-clamp-1 truncate text-sm mb-[2px] w-full ">
-                {frame.data.type === "text" ? frame.data.text : media?.input?.prompt || label}
+                {frame.data.type === "text"
+                  ? frame.data.text
+                  : media?.input?.prompt || label}
               </span>
             </div>
             <div className="flex flex-row shrink-0 flex-1 items-center justify-end">
@@ -364,7 +370,7 @@ export function VideoTrackView({
         </div>
         <div
           className={cn(
-            "p-px flex-1 items-center bg-repeat-x h-full max-h-full overflow-hidden relative"
+            "p-px flex-1 items-center bg-repeat-x h-full max-h-full overflow-hidden relative",
           )}
           style={
             imageUrl
@@ -375,9 +381,8 @@ export function VideoTrackView({
               : undefined
           }
         >
-          {(media?.mediaType === "music" || media?.mediaType === "voiceover") && media && (
-            <AudioWaveform data={media} />
-          )}
+          {(media?.mediaType === "music" || media?.mediaType === "voiceover") &&
+            media && <AudioWaveform data={media} />}
           <div
             className={cn(
               "absolute right-0 z-50 top-0 bg-black/20 group-hover:bg-black/40",

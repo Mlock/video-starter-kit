@@ -1,0 +1,30 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Project Instructions
+
+Use specification and guidelines as you build the app.
+
+Write the complete code for every step. Do not get lazy.
+
+Your goal is to completely finish whatever I ask for.
+
+You will see <ai_context> tags in the code. These are context tags that you should use to help you understand the codebase.
+
+## Overview
+
+This is a web app template
+
+## Tech stack
+
+- Frontend: Next.js, Tailwind, Shadcn, Framer Motion, Fal.ai
+- Backend: Supabase
+- Auth: Supabase
+- Payments: stripe
+- Sharing: upstash
+- Fileupload: UPLOADTHING
+
+## Next.js
+- using page router. not app router. 

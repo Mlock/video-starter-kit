@@ -94,7 +94,12 @@ export default function LeftPanel() {
         projectId,
         kind: "uploaded",
         createdAt: Date.now(),
-        mediaType: outputType as "video" | "image" | "music" | "voiceover" | "text",
+        mediaType: outputType as
+          | "video"
+          | "image"
+          | "music"
+          | "voiceover"
+          | "text",
         status: "completed",
         url: file.url,
       };

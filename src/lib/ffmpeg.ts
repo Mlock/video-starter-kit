@@ -14,11 +14,11 @@ export async function getMediaMetadata(media: MediaItem) {
           color: "white",
           fontFamily: "sans-serif",
           position: "center",
-        }
-      }
+        },
+      },
     };
   }
-  
+
   try {
     const { data: mediaMetadata } = await fal.subscribe(
       "fal-ai/ffmpeg-api/metadata",
