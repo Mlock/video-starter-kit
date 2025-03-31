@@ -21,12 +21,12 @@ import {
   WandSparklesIcon,
   CrossIcon,
   XIcon,
+  TypeIcon,
 } from "lucide-react";
 import { MediaItemRow } from "./media-panel";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Textarea } from "./ui/textarea";
-
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useEffect, useMemo, useState } from "react";
 import { useUploadThing } from "@/lib/uploadthing";
 import type { ClientUploadedFileData } from "uploadthing/types";
@@ -47,15 +47,20 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "./ui/select";
+} from "@/components/ui/select";
 import { enhancePrompt } from "@/lib/prompt";
 import { WithTooltip } from "./ui/tooltip";
-import { Label } from "./ui/label";
+import { Label } from "@/components/ui/label";
 import { VoiceSelector } from "./playht/voice-selector";
 import { LoadingIcon } from "./ui/icons";
 import { getMediaMetadata } from "@/lib/ffmpeg";
 import CameraMovement from "./camera-control";
 import VideoFrameSelector from "./video-frame-selector";
+import { Slider } from "@/components/ui/slider";
+import { useDropzone } from "react-dropzone";
+import { Loader2, Upload } from "lucide-react";
+import { useDebounce } from "@/hooks/use-debounce";
+import { v4 as uuidv4 } from "uuid";
 
 type ModelEndpointPickerProps = {
   mediaType: string;
@@ -88,6 +93,21 @@ function ModelEndpointPicker({
     </Select>
   );
 }
+
+// Add Google Fonts API URL
+const GOOGLE_FONTS_API = "https://www.googleapis.com/webfonts/v1/webfonts?key=YOUR_API_KEY";
+
+// Popular Google Fonts for video text
+const POPULAR_FONTS = [
+  { family: "Roboto", category: "sans-serif" },
+  { family: "Open Sans", category: "sans-serif" },
+  { family: "Playfair Display", category: "serif" },
+  { family: "Montserrat", category: "sans-serif" },
+  { family: "Lato", category: "sans-serif" },
+  { family: "Poppins", category: "sans-serif" },
+  { family: "Oswald", category: "sans-serif" },
+  { family: "Raleway", category: "sans-serif" },
+];
 
 export default function RightPanel({
   onOpenChange,
@@ -128,13 +148,16 @@ export default function RightPanel({
   const { toast } = useToast();
   const enhance = useMutation({
     mutationFn: async () => {
+      if (!generateData.prompt || mediaType === "text") return "";
       return enhancePrompt(generateData.prompt, {
         type: mediaType,
         project,
       });
     },
     onSuccess: (enhancedPrompt) => {
-      setGenerateData({ prompt: enhancedPrompt });
+      if (enhancedPrompt) {
+        setGenerateData({ prompt: enhancedPrompt });
+      }
     },
     onError: (error) => {
       console.warn("Failed to create suggestion", error);
@@ -150,31 +173,59 @@ export default function RightPanel({
   const setMediaType = useVideoProjectStore((s) => s.setGenerateMediaType);
 
   const endpoint = useMemo(
-    () =>
-      AVAILABLE_ENDPOINTS.find(
+    () => {
+      const foundEndpoint = AVAILABLE_ENDPOINTS.find(
         (endpoint) => endpoint.endpointId === endpointId,
-      ),
+      );
+      
+      // Ensure every endpoint has inputAsset as at least an empty array
+      if (foundEndpoint && !foundEndpoint.inputAsset) {
+        return {
+          ...foundEndpoint,
+          inputAsset: [],
+        };
+      }
+      
+      return foundEndpoint;
+    },
     [endpointId],
   );
   const handleMediaTypeChange = (mediaType: string) => {
     setMediaType(mediaType as MediaType);
     const endpoint = AVAILABLE_ENDPOINTS.find(
-      (endpoint) => endpoint.category === mediaType,
+      (endpoint) => endpoint.category === mediaType || 
+      (mediaType === "img2img" && endpoint.endpointId === "image-to-image")
     );
 
     const initialInput = endpoint?.initialInput || {};
 
-    if (
+    if (mediaType === "text") {
+      setGenerateData({
+        text: "",
+        style: {
+          fontSize: 48,
+          color: "white",
+          fontFamily: "sans-serif",
+          position: "center",
+        },
+        duration: 5,
+      });
+      // Use the text endpoint directly
+      setEndpointId("text");
+    } else if (mediaType === "img2img") {
+      setGenerateData({ image: null, ...initialInput });
+      setEndpointId("image-to-image");
+    } else if (
       (mediaType === "video" &&
         endpoint?.endpointId === "fal-ai/hunyuan-video") ||
       mediaType !== "video"
     ) {
       setGenerateData({ image: null, ...initialInput });
+      setEndpointId(endpoint?.endpointId ?? AVAILABLE_ENDPOINTS[0].endpointId);
     } else {
       setGenerateData({ ...initialInput });
+      setEndpointId(endpoint?.endpointId ?? AVAILABLE_ENDPOINTS[0].endpointId);
     }
-
-    setEndpointId(endpoint?.endpointId ?? AVAILABLE_ENDPOINTS[0].endpointId);
   };
   // TODO improve model-specific parameters
   type InputType = {
@@ -213,7 +264,7 @@ export default function RightPanel({
   }
 
   const input: InputType = {
-    prompt: generateData.prompt,
+    prompt: generateData.prompt || "",
     image_url: undefined,
     image_size: imageAspectRatio,
     aspect_ratio: videoAspectRatio,
@@ -262,7 +313,7 @@ export default function RightPanel({
       generateData.image && mediaType === "video"
         ? `${endpointId}/image-to-video`
         : endpointId,
-    mediaType,
+    mediaType: mediaType === "img2img" ? "image" : mediaType as any,
     input: {
       ...(endpoint?.initialInput || {}),
       ...mapInputKey(input, endpoint?.inputMap || {}),
@@ -271,6 +322,82 @@ export default function RightPanel({
   });
 
   const handleOnGenerate = async () => {
+    if (!projectId) return;
+
+    if (mediaType === "text") {
+      // Create a media item for the text in the gallery with proper metadata
+      const mediaId = await db.media.create({
+        projectId,
+        kind: "generated",
+        createdAt: Date.now(),
+        mediaType: "text",
+        status: "completed",
+        url: generateData.text || "",
+        metadata: {
+          text: generateData.text || "",
+          style: {
+            fontSize: generateData.style?.fontSize || 48,
+            color: generateData.style?.color || "white",
+            fontFamily: generateData.style?.fontFamily || "sans-serif",
+            position: generateData.style?.position || "center",
+          },
+          duration: (generateData.duration || 5) * 1000,
+        },
+      });
+
+      const trackId = await db.tracks.create({
+        projectId,
+        type: "text",
+        label: "Text",
+        locked: false,
+      });
+
+      if (typeof trackId === "string") {
+        await db.keyFrames.create({
+          trackId,
+          timestamp: 0,
+          duration: (generateData.duration || 5) * 1000,
+          data: {
+            type: "text",
+            text: generateData.text || "",
+            style: {
+              fontSize: generateData.style?.fontSize || 48,
+              color: generateData.style?.color || "white",
+              fontFamily: generateData.style?.fontFamily || "sans-serif",
+              position: generateData.style?.position || "center",
+            },
+          },
+        });
+      }
+
+      // Refresh the gallery to show the new text item
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.projectMediaItems(projectId),
+      });
+
+      handleOnOpenChange(false);
+      return;
+    }
+
+    if (mediaType === "img2img" && generateData.image) {
+      // For image-to-image, we use the same endpoint but with the image input
+      await createJob.mutateAsync({} as any, {
+        onSuccess: async () => {
+          if (!createJob.isError) {
+            handleOnOpenChange(false);
+          }
+        },
+        onError: (error) => {
+          console.warn("Failed to create img2img job", error);
+          toast({
+            title: "Failed to transform image",
+            description: "Please ensure you've set your FAL KEY in the settings.",
+          });
+        },
+      });
+      return;
+    }
+
     await createJob.mutateAsync({} as any, {
       onSuccess: async () => {
         if (!createJob.isError) {
@@ -347,7 +474,7 @@ export default function RightPanel({
         projectId,
         kind: "uploaded",
         createdAt: Date.now(),
-        mediaType: outputType as MediaType,
+        mediaType: outputType as "video" | "image" | "music" | "voiceover" | "text",
         status: "completed",
         url: file.url,
       };
@@ -360,7 +487,7 @@ export default function RightPanel({
       const mediaId = await db.media.create(data);
       const media = await db.media.find(mediaId as string);
 
-      if (media && media.mediaType !== "image") {
+      if (media && media.mediaType !== "image" && media.mediaType !== "text") {
         const mediaMetadata = await getMediaMetadata(media as MediaItem);
 
         await db.media
@@ -405,7 +532,7 @@ export default function RightPanel({
               onClick={() => handleMediaTypeChange("image")}
               className={cn(
                 mediaType === "image" && "bg-white/10",
-                "h-14 flex flex-col justify-center w-1/4 rounded-md gap-2 items-center",
+                "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
               )}
             >
               <ImageIcon className="w-4 h-4 opacity-50" />
@@ -413,10 +540,21 @@ export default function RightPanel({
             </Button>
             <Button
               variant="ghost"
+              onClick={() => handleMediaTypeChange("img2img")}
+              className={cn(
+                mediaType === "img2img" && "bg-white/10",
+                "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
+              )}
+            >
+              <ImageIcon className="w-4 h-4 opacity-50" />
+              <span className="text-[10px]">Img2Img</span>
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => handleMediaTypeChange("video")}
               className={cn(
                 mediaType === "video" && "bg-white/10",
-                "h-14 flex flex-col justify-center w-1/4 rounded-md gap-2 items-center",
+                "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
               )}
             >
               <VideoIcon className="w-4 h-4 opacity-50" />
@@ -424,10 +562,21 @@ export default function RightPanel({
             </Button>
             <Button
               variant="ghost"
+              onClick={() => handleMediaTypeChange("text")}
+              className={cn(
+                mediaType === "text" && "bg-white/10",
+                "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
+              )}
+            >
+              <TypeIcon className="w-4 h-4 opacity-50" />
+              <span className="text-[10px]">Text</span>
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => handleMediaTypeChange("voiceover")}
               className={cn(
                 mediaType === "voiceover" && "bg-white/10",
-                "h-14 flex flex-col justify-center w-1/4 rounded-md gap-2 items-center",
+                "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
               )}
             >
               <MicIcon className="w-4 h-4 opacity-50" />
@@ -438,7 +587,7 @@ export default function RightPanel({
               onClick={() => handleMediaTypeChange("music")}
               className={cn(
                 mediaType === "music" && "bg-white/10",
-                "h-14 flex flex-col justify-center w-1/4 rounded-md gap-2 items-center",
+                "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
               )}
             >
               <MusicIcon className="w-4 h-4 opacity-50" />
@@ -579,11 +728,11 @@ export default function RightPanel({
               </div>
             </div>
           ))}
-          {endpoint?.prompt !== false && (
+          {endpoint?.prompt !== false && mediaType !== "text" && (
             <div className="relative bg-border rounded-lg pb-10 placeholder:text-base w-full  resize-none">
               <Textarea
                 className="text-base shadow-none focus:!ring-0 placeholder:text-base w-full h-32 resize-none"
-                placeholder="Imagine..."
+                placeholder={mediaType === "img2img" ? "Describe how you want to transform the image..." : "Imagine..."}
                 value={generateData.prompt}
                 rows={3}
                 onChange={(e) => setGenerateData({ prompt: e.target.value })}
@@ -667,13 +816,141 @@ export default function RightPanel({
                 )}
               </div>
             )}
+            {mediaType === "text" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Text Content</Label>
+                  <Textarea
+                    placeholder="Enter your text..."
+                    value={generateData.text || ""}
+                    onChange={(e) => setGenerateData({ ...generateData, text: e.target.value })}
+                    className="min-h-[100px]"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Font Family</Label>
+                  <Select
+                    value={generateData.style?.fontFamily || "Roboto"}
+                    onValueChange={(value) =>
+                      setGenerateData({
+                        ...generateData,
+                        style: { ...generateData.style, fontFamily: value },
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select font" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {POPULAR_FONTS.map((font) => (
+                        <SelectItem key={font.family} value={font.family}>
+                          <span style={{ fontFamily: font.family }}>{font.family}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Font Size</Label>
+                  <div className="flex items-center gap-2">
+                    <Slider
+                      value={[generateData.style?.fontSize || 48]}
+                      onValueChange={([value]) =>
+                        setGenerateData({
+                          ...generateData,
+                          style: { ...generateData.style, fontSize: value },
+                        })
+                      }
+                      min={12}
+                      max={200}
+                      step={1}
+                      className="flex-1"
+                    />
+                    <span className="text-sm text-muted-foreground w-12 text-right">
+                      {generateData.style?.fontSize || 48}px
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Text Color</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="color"
+                      value={generateData.style?.color || "#ffffff"}
+                      onChange={(e) =>
+                        setGenerateData({
+                          ...generateData,
+                          style: { ...generateData.style, color: e.target.value },
+                        })
+                      }
+                      className="w-20 h-10 p-1"
+                    />
+                    <Input
+                      type="text"
+                      value={generateData.style?.color || "#ffffff"}
+                      onChange={(e) =>
+                        setGenerateData({
+                          ...generateData,
+                          style: { ...generateData.style, color: e.target.value },
+                        })
+                      }
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Position</Label>
+                  <Select
+                    value={generateData.style?.position || "center"}
+                    onValueChange={(value: "top" | "center" | "bottom") =>
+                      setGenerateData({
+                        ...generateData,
+                        style: { ...generateData.style, position: value },
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select position" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="top">Top</SelectItem>
+                      <SelectItem value="center">Center</SelectItem>
+                      <SelectItem value="bottom">Bottom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Duration (seconds)</Label>
+                  <div className="flex items-center gap-2">
+                    <Slider
+                      value={[generateData.duration || 5]}
+                      onValueChange={([value]) =>
+                        setGenerateData({ ...generateData, duration: value })
+                      }
+                      min={1}
+                      max={30}
+                      step={1}
+                      className="flex-1"
+                    />
+                    <span className="text-sm text-muted-foreground w-12 text-right">
+                      {generateData.duration || 5}s
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex flex-row gap-2">
               <Button
                 className="w-full"
                 disabled={enhance.isPending || createJob.isPending}
                 onClick={handleOnGenerate}
               >
-                Generate
+                {mediaType === "text" ? "Add Text" : mediaType === "img2img" ? "Transform Image" : "Generate"}
               </Button>
             </div>
           </div>
@@ -729,6 +1006,11 @@ const SelectedAssetPreview = ({
           }
           alt="Media Preview"
         />
+      )}
+      {assetType === "text" && (
+        <div className="p-4 text-center">
+          <p className="text-lg font-medium">{data[assetKey]}</p>
+        </div>
       )}
     </>
   );

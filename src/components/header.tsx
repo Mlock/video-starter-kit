@@ -42,7 +42,11 @@ export default function Header({
               Sign Out
             </Button>
           ) : (
-            <Button variant="ghost" size="sm" onClick={() => setAuthDialogOpen(true)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setAuthDialogOpen(true)}
+            >
               Sign In
             </Button>
           )}

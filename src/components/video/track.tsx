@@ -170,13 +170,14 @@ export function VideoTrackView({
   const projectId = useProjectId();
   const { data: mediaItems = [] } = useProjectMediaItems(projectId);
 
-  const media = mediaItems.find((item) => item.id === frame.data.mediaId);
+  const media = frame.data.type === "text" ? undefined : mediaItems.find((item) => item.id === frame.data.mediaId);
   // TODO improve missing data
-  if (!media) return null;
+  if (!media && frame.data.type !== "text") return null;
 
-  const mediaUrl = resolveMediaUrl(media);
+  const mediaUrl = media ? resolveMediaUrl(media) : null;
 
   const imageUrl = useMemo(() => {
+    if (!media) return undefined;
     if (media.mediaType === "image") {
       return mediaUrl;
     }
@@ -190,7 +191,7 @@ export function VideoTrackView({
     return undefined;
   }, [media, mediaUrl]);
 
-  const label = media.mediaType ?? "unknown";
+  const label = frame.data.type === "text" ? "Text" : media?.mediaType ?? "unknown";
 
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -276,7 +277,7 @@ export function VideoTrackView({
       let newWidth = startWidth + (direction === "right" ? deltaX : -deltaX);
 
       const minDuration = 1000;
-      const mediaDuration = resolveDuration(media) ?? 5000;
+      const mediaDuration = media ? resolveDuration(media) ?? 5000 : 5000;
       const maxDuration = Math.min(mediaDuration, 30000);
 
       const timelineElement = trackElement.closest(".timeline-container");
@@ -332,6 +333,7 @@ export function VideoTrackView({
             "bg-sky-600": track.type === "video",
             "bg-teal-500": track.type === "music",
             "bg-indigo-500": track.type === "voiceover",
+            "bg-purple-500": track.type === "text",
           },
         )}
       >
@@ -344,7 +346,7 @@ export function VideoTrackView({
                 (typeof trackIcons)[typeof track.type]
               >)}
               <span className="line-clamp-1 truncate text-sm mb-[2px] w-full ">
-                {media.input?.prompt || label}
+                {frame.data.type === "text" ? frame.data.text : media?.input?.prompt || label}
               </span>
             </div>
             <div className="flex flex-row shrink-0 flex-1 items-center justify-end">
@@ -361,7 +363,9 @@ export function VideoTrackView({
           </div>
         </div>
         <div
-          className="p-px flex-1 items-center bg-repeat-x h-full max-h-full overflow-hidden relative"
+          className={cn(
+            "p-px flex-1 items-center bg-repeat-x h-full max-h-full overflow-hidden relative"
+          )}
           style={
             imageUrl
               ? {
@@ -371,7 +375,7 @@ export function VideoTrackView({
               : undefined
           }
         >
-          {(media.mediaType === "music" || media.mediaType === "voiceover") && (
+          {(media?.mediaType === "music" || media?.mediaType === "voiceover") && media && (
             <AudioWaveform data={media} />
           )}
           <div

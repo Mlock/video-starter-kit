@@ -102,6 +102,12 @@ const MainComposition: React.FC<VideoCompositionProps> = ({
               mediaItems={mediaItems}
             />
           )}
+          {track.type === "text" && (
+            <TextTrackSequence
+              track={track}
+              frames={frames[track.id] || []}
+            />
+          )}
           {(track.type === "music" || track.type === "voiceover") && (
             <AudioTrackSequence
               track={track}
@@ -118,12 +124,12 @@ const MainComposition: React.FC<VideoCompositionProps> = ({
 interface TrackSequenceProps {
   track: VideoTrack;
   frames: VideoKeyFrame[];
-  mediaItems: Record<string, MediaItem>;
+  mediaItems?: Record<string, MediaItem>;
 }
 
 const VideoTrackSequence: React.FC<TrackSequenceProps> = ({
   frames,
-  mediaItems,
+  mediaItems = {},
 }) => {
   return (
     <AbsoluteFill>
@@ -157,7 +163,7 @@ const VideoTrackSequence: React.FC<TrackSequenceProps> = ({
 
 const AudioTrackSequence: React.FC<TrackSequenceProps> = ({
   frames,
-  mediaItems,
+  mediaItems = {},
 }) => {
   return (
     <>
@@ -183,6 +189,51 @@ const AudioTrackSequence: React.FC<TrackSequenceProps> = ({
         );
       })}
     </>
+  );
+};
+
+const TextTrackSequence: React.FC<TrackSequenceProps> = ({ frames }) => {
+  return (
+    <AbsoluteFill>
+      {frames.map((frame) => {
+        if (frame.data.type !== "text") return null;
+
+        const style = frame.data.style || {};
+        const position = style.position || "center";
+        
+        return (
+          <Sequence
+            key={frame.id}
+            from={Math.floor(frame.timestamp / (1000 / FPS))}
+            durationInFrames={Math.floor((frame.duration || 5000) / (1000 / FPS))}
+            premountFor={3000}
+          >
+            <div
+              className={cn(
+                "absolute left-0 right-0 flex items-center justify-center",
+                {
+                  "top-4": position === "top",
+                  "top-1/2 -translate-y-1/2": position === "center",
+                  "bottom-4": position === "bottom",
+                }
+              )}
+            >
+              <div
+                style={{
+                  fontSize: style.fontSize || 48,
+                  color: style.color || "white",
+                  fontFamily: style.fontFamily || "sans-serif",
+                  textAlign: "center",
+                  textShadow: "0 2px 4px rgba(0,0,0,0.5)",
+                }}
+              >
+                {frame.data.text}
+              </div>
+            </div>
+          </Sequence>
+        );
+      })}
+    </AbsoluteFill>
   );
 };
 

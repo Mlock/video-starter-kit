@@ -11,8 +11,9 @@ export type InputAsset =
   | "video"
   | "image"
   | "audio"
+  | "text"
   | {
-      type: "video" | "image" | "audio";
+      type: "video" | "image" | "audio" | "text";
       key: string;
     };
 
@@ -27,11 +28,27 @@ export type ApiInfo = {
   initialInput?: Record<string, unknown>;
   cameraControl?: boolean;
   imageForFrame?: boolean;
-  category: "image" | "video" | "music" | "voiceover";
+  category: "image" | "video" | "music" | "voiceover" | "text";
   prompt?: boolean;
 };
 
 export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
+  {
+    endpointId: "text",
+    label: "Text",
+    description: "Add text to your video",
+    cost: "",
+    category: "text",
+    inputAsset: [],
+  },
+  {
+    endpointId: "image-to-image",
+    label: "Image to Image",
+    description: "Transform existing images with AI",
+    cost: "",
+    category: "image",
+    inputAsset: ["image"],
+  },
   {
     endpointId: "fal-ai/flux/dev",
     label: "Flux Dev",

@@ -8,15 +8,22 @@ import { useStore } from "zustand/react";
 
 export const LAST_PROJECT_ID_KEY = "__aivs_lastProjectId";
 
-export type MediaType = "image" | "video" | "voiceover" | "music";
+export type MediaType = "image" | "video" | "music" | "voiceover" | "text" | "img2img";
 
 export type GenerateData = {
-  prompt: string;
-  image?: File | string | null;
-  video_url?: File | string | null;
-  audio_url?: File | string | null;
-  duration: number;
-  voice: string;
+  prompt?: string;
+  image?: File | null;
+  video?: File | null;
+  music?: File | null;
+  voiceover?: File | null;
+  text?: string;
+  style?: {
+    fontSize?: number;
+    color?: string;
+    fontFamily?: string;
+    position?: "top" | "center" | "bottom";
+  };
+  duration?: number;
   [key: string]: any;
 };
 

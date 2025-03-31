@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import "../globals.css";
+import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: "AI Video Developer Starter Kit | fal.ai",
@@ -17,6 +18,7 @@ export default function RootLayout({
       <body className="antialiased dark">
         {children}
         <Analytics />
+        <Toaster />
       </body>
     </html>
   );

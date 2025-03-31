@@ -3,6 +3,8 @@ import {
   TRACK_TYPE_ORDER,
   type MediaItem,
   type VideoTrack,
+  type KeyFrameData,
+  type VideoTrackType,
 } from "@/data/schema";
 import { useProjectId, useVideoProjectStore } from "@/data/store";
 import { cn, resolveDuration } from "@/lib/utils";
@@ -82,7 +84,19 @@ export default function BottomBar() {
   const addToTrack = useMutation({
     mutationFn: async (media: MediaItem) => {
       const tracks = await db.tracks.tracksByProject(media.projectId);
-      const trackType = media.mediaType === "image" ? "video" : media.mediaType;
+      let trackType: VideoTrackType;
+      
+      if (media.mediaType === "image") {
+        trackType = "video";
+      } else if (media.mediaType === "text") {
+        trackType = "text";
+      } else if (media.mediaType === "music" || media.mediaType === "voiceover") {
+        trackType = media.mediaType;
+      } else {
+        // Default to video for any other type
+        trackType = "video";
+      }
+      
       let track = tracks.find((t) => t.type === trackType);
       if (!track) {
         const id = await db.tracks.create({
@@ -111,14 +125,32 @@ export default function BottomBar() {
       const mediaDuration = resolveDuration(media) ?? 5000;
       const duration = Math.min(mediaDuration, 30000);
 
-      const newId = await db.keyFrames.create({
-        trackId: track.id,
-        data: {
+      // Create appropriate keyframe data based on media type
+      let keyframeData: KeyFrameData;
+      
+      if (media.mediaType === "text") {
+        keyframeData = {
+          type: "text",
+          text: media.url || "",
+          style: media.metadata?.style || {
+            fontSize: 48,
+            color: "white",
+            fontFamily: "sans-serif",
+            position: "center",
+          }
+        };
+      } else {
+        keyframeData = {
           mediaId: media.id,
           type: media.input?.image_url ? "image" : "prompt",
           prompt: media.input?.prompt || "",
           url: media.input?.image_url?.url,
-        },
+        };
+      }
+
+      const newId = await db.keyFrames.create({
+        trackId: track.id,
+        data: keyframeData,
         timestamp: lastKeyframe
           ? lastKeyframe.timestamp + 1 + lastKeyframe.duration
           : 0,
@@ -160,6 +192,16 @@ export default function BottomBar() {
           id: "voiceover",
           type: "voiceover",
           label: "Voiceover",
+          locked: true,
+          keyframes: [],
+          projectId: projectId,
+        } as VideoTrack),
+      text:
+        tracks.find((t) => t.type === "text") ||
+        ({
+          id: "text",
+          type: "text",
+          label: "Text",
           locked: true,
           keyframes: [],
           projectId: projectId,

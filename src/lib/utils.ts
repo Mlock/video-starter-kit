@@ -1,7 +1,7 @@
 import type { MediaItem, VideoTrack } from "@/data/schema";
 import { GenerateData, LAST_PROJECT_ID_KEY } from "@/data/store";
 import { type ClassValue, clsx } from "clsx";
-import { ImageIcon, MicIcon, MusicIcon, VideoIcon } from "lucide-react";
+import { ImageIcon, MicIcon, MusicIcon, VideoIcon, TypeIcon } from "lucide-react";
 import type { FunctionComponent } from "react";
 import { twMerge } from "tailwind-merge";
 import type { InputAsset } from "./fal";
@@ -46,6 +46,7 @@ export const trackIcons: Record<
   music: MusicIcon,
   voiceover: MicIcon,
   image: ImageIcon,
+  text: TypeIcon,
 };
 
 export function resolveDuration(item: MediaItem): number | null {
@@ -104,17 +105,21 @@ export function resolveMediaUrl(item: MediaItem | undefined): string | null {
   if (property) {
     return data[property].url;
   }
+  if (item.mediaType === "text") {
+    return null; // Text media type doesn't have a URL
+  }
   return null;
 }
 
-export function getAssetType(asset: InputAsset): "image" | "video" | "audio" {
+export function getAssetType(asset: InputAsset): "image" | "video" | "audio" | "text" {
   return typeof asset === "string" ? asset : asset.type;
 }
 
-export const assetKeyMap: Record<"image" | "video" | "audio", string> = {
+export const assetKeyMap: Record<"image" | "video" | "audio" | "text", string> = {
   image: "image",
   video: "video_url",
   audio: "audio_url",
+  text: "text",
 };
 
 export function getAssetKey(asset: InputAsset): string {

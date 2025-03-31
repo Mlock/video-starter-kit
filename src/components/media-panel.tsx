@@ -13,6 +13,7 @@ import {
   ImageIcon,
   MicIcon,
   MusicIcon,
+  TypeIcon,
   VideoIcon,
 } from "lucide-react";
 import {
@@ -180,6 +181,11 @@ export function MediaItemRow({
                 <MicIcon className="w-7 h-7 text-muted-foreground" />
               </div>
             )}
+            {data.mediaType === "text" && (
+              <div className="w-full h-full flex items-center justify-center top-0 left-0 absolute p-2 z-50">
+                <TypeIcon className="w-7 h-7 text-muted-foreground" />
+              </div>
+            )}
           </>
         ) : (
           <div className="w-full h-full bg-white/5 flex items-center justify-center text-muted-foreground">
@@ -202,8 +208,14 @@ export function MediaItemRow({
               } as React.ComponentProps<
                 (typeof trackIcons)[keyof typeof trackIcons]
               >)}
-              <span>{data.kind === "generated" ? "Job" : "File"}</span>
-              <code className="text-muted-foreground">#{mediaId}</code>
+              {data.mediaType === "text" ? (
+                <span className="line-clamp-1">{data.url}</span>
+              ) : (
+                <>
+                  <span>{data.kind === "generated" ? "Job" : "File"}</span>
+                  <code className="text-muted-foreground">#{mediaId}</code>
+                </>
+              )}
             </h3>
             {data.status !== "completed" && (
               <Badge
@@ -218,9 +230,11 @@ export function MediaItemRow({
               </Badge>
             )}
           </div>
-          <p className="opacity-40 text-sm line-clamp-1 ">
-            {data.input?.prompt}
-          </p>
+          {data.mediaType !== "text" && (
+            <p className="opacity-40 text-sm line-clamp-1 ">
+              {data.input?.prompt}
+            </p>
+          )}
         </div>
         <div className="flex flex-row gap-2 justify-between">
           <span className="text-xs text-muted-foreground">

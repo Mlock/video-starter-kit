@@ -21,6 +21,7 @@ import {
   LoaderCircleIcon,
   CloudUploadIcon,
   SparklesIcon,
+  TypeIcon,
 } from "lucide-react";
 import { MediaItemPanel } from "./media-panel";
 import { Button } from "./ui/button";
@@ -93,7 +94,7 @@ export default function LeftPanel() {
         projectId,
         kind: "uploaded",
         createdAt: Date.now(),
-        mediaType: outputType as MediaType,
+        mediaType: outputType as "video" | "image" | "music" | "voiceover" | "text",
         status: "completed",
         url: file.url,
       };
@@ -227,6 +228,13 @@ export default function LeftPanel() {
                 >
                   <FilmIcon className="w-4 h-4 opacity-50" />
                   Video
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-sm"
+                  onClick={() => setMediaType("text")}
+                >
+                  <TypeIcon className="w-4 h-4 opacity-50" />
+                  Text
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

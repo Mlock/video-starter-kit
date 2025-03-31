@@ -1,8 +1,10 @@
 import { fal } from "@/lib/fal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { db } from "./db";
+import { db } from "@/data/db";
 import { queryKeys } from "./queries";
 import type { VideoProject } from "./schema";
+import type { MediaItem } from "./schema";
+import type { MediaType } from "./store";
 
 export const useProjectUpdater = (projectId: string) => {
   const queryClient = useQueryClient();
@@ -29,7 +31,7 @@ export const useProjectCreator = () => {
 type JobCreatorParams = {
   projectId: string;
   endpointId: string;
-  mediaType: "video" | "image" | "voiceover" | "music";
+  mediaType: "video" | "image" | "voiceover" | "music" | "text" | "img2img";
   input: Record<string, any>;
 };
 
@@ -40,26 +42,40 @@ export const useJobCreator = ({
   input,
 }: JobCreatorParams) => {
   const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: () =>
-      fal.queue.submit(endpointId, {
+    mutationFn: async () => {
+      if (mediaType === "text") {
+        return null;
+      }
+
+      const { data } = await fal.subscribe(endpointId, {
         input,
-      }),
-    onSuccess: async (data) => {
-      await db.media.create({
+        mode: "polling",
+        pollInterval: 3000,
+      });
+
+      const mediaItem: Omit<MediaItem, "id"> = {
         projectId,
-        createdAt: Date.now(),
-        mediaType,
         kind: "generated",
         endpointId,
         requestId: data.request_id,
-        status: "pending",
+        mediaType,
+        status: "completed",
+        createdAt: Date.now(),
         input,
-      });
+        output: data,
+      };
 
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.projectMediaItems(projectId),
-      });
+      const mediaId = await db.media.create(mediaItem);
+      return mediaId;
+    },
+    onSuccess: async (mediaId) => {
+      if (mediaId) {
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.projectMediaItems(projectId),
+        });
+      }
     },
   });
 };

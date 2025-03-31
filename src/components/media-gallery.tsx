@@ -228,6 +228,23 @@ export function MediaGallerySheet({
                 selectedMedia.mediaType === "voiceover") && (
                 <AudioPlayer media={selectedMedia} />
               )}
+              {selectedMedia.mediaType === "text" && (
+                <div 
+                  className="animate-fade-scale-in bg-black/80 p-6 rounded-lg max-w-[90%] max-h-[90%] overflow-auto"
+                  onClick={preventClose}
+                >
+                  <p 
+                    style={{
+                      fontSize: selectedMedia.metadata?.style?.fontSize || 48,
+                      color: selectedMedia.metadata?.style?.color || "white",
+                      fontFamily: selectedMedia.metadata?.style?.fontFamily || "sans-serif",
+                      textAlign: "center",
+                    }}
+                  >
+                    {selectedMedia.url || selectedMedia.metadata?.text || "No text content"}
+                  </p>
+                </div>
+              )}
             </>
           )}
           <style jsx>{`
