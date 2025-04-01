@@ -57,10 +57,6 @@ export default function Header({
               className="relative"
               onClick={openKeyDialog}
             >
-              {typeof localStorage !== "undefined" &&
-                !localStorage?.getItem("falKey") && (
-                  <span className="dark:bg-orange-400 bg-orange-600 w-2 h-2 rounded-full absolute top-1 right-1"></span>
-                )}
               <SettingsIcon className="w-6 h-6" />
             </Button>
           )}

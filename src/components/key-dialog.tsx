@@ -24,7 +24,13 @@ export function KeyDialog({ onOpenChange, open, ...props }: KeyDialogProps) {
   };
 
   const handleSave = () => {
-    localStorage.setItem("falKey", falKey);
+    // Update the environment variable in .env.local
+    // Note: This is not possible in the browser, so we'll just show a message
+    useToast().toast({
+      title: "Environment Variable Required",
+      description: "Please update your .env.local file with the FAL key.",
+      variant: "destructive",
+    });
     handleOnOpenChange(false);
     setFalKey("");
   };
@@ -37,7 +43,7 @@ export function KeyDialog({ onOpenChange, open, ...props }: KeyDialogProps) {
         </DialogHeader>
         <div className="flex flex-col flex-1 gap-8">
           <h2 className="text-lg font-semibold flex flex-row gap-2">
-            Save your own FAL Key
+            Update FAL Key in Environment
           </h2>
           <div className="flex flex-col gap-4">
             <Input

@@ -13,6 +13,8 @@ Your goal is to completely finish whatever I ask for.
 
 You will see <ai_context> tags in the code. These are context tags that you should use to help you understand the codebase.
 
+If the code is written and it's working, do not rename anything and do not rewrite code files from scratch unless asked to reformat. 
+
 ## Overview
 
 This is a web app template

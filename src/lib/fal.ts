@@ -3,13 +3,6 @@
 import { createFalClient } from "@fal-ai/client";
 
 export const fal = createFalClient({
-  credentials: () => {
-    // Check if we're in a browser environment where localStorage exists
-    if (typeof window !== 'undefined' && window.localStorage) {
-      return localStorage?.getItem("falKey") as string;
-    }
-    return ""; // Return empty string for SSR
-  },
   proxyUrl: "/api/fal",
 });
 
@@ -244,7 +237,7 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
   },
   {
     endpointId: "fal-ai/flux/dev/image-to-image",
-    label: "Image to Image",
+    label: "Flux Dev Image to Image",
     description: "Transform existing images with AI",
     cost: "",
     category: "img2img",
