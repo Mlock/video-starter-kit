@@ -26,10 +26,12 @@ export type AnyLlmOutput = {
 export type Result<T = any> = {
   data?: T;
   images?: Array<{ url: string }>;
-  output?: {
-    images?: Array<{ url: string }>;
-    [key: string]: any;
-  } | string;
+  output?:
+    | {
+        images?: Array<{ url: string }>;
+        [key: string]: any;
+      }
+    | string;
   video_url?: string;
   url?: string;
   [key: string]: any;
