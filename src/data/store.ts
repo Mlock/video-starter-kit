@@ -46,6 +46,7 @@ interface VideoProjectProps {
   generateData: GenerateData;
   exportDialogOpen: boolean;
   endpointId: string;
+  storyGeneratorOpen: boolean;
 }
 
 interface VideoProjectState extends VideoProjectProps {
@@ -63,6 +64,7 @@ interface VideoProjectState extends VideoProjectProps {
   setGenerateData: (generateData: Partial<GenerateData>) => void;
   setExportDialogOpen: (open: boolean) => void;
   setEndpointId: (endpointId: string) => void;
+  setStoryGeneratorOpen: (open: boolean) => void;
   onGenerate: () => void;
 }
 
@@ -86,6 +88,7 @@ const DEFAULT_PROPS: VideoProjectProps = {
     audio_url: null,
   },
   exportDialogOpen: false,
+  storyGeneratorOpen: false,
 };
 
 type VideoProjectStore = ReturnType<typeof createVideoProjectStore>;
@@ -143,8 +146,8 @@ export const createVideoProjectStore = (
         set({ selectedKeyframes: [...selected, frameId] });
       }
     },
-    setExportDialogOpen: (exportDialogOpen: boolean) =>
-      set({ exportDialogOpen }),
+    setStoryGeneratorOpen: (open: boolean) => set({ storyGeneratorOpen: open }),
+    setExportDialogOpen: (open: boolean) => set({ exportDialogOpen: open }),
   }));
 };
 

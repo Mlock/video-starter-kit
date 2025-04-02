@@ -9,7 +9,7 @@ import {
   useProjectId,
   useVideoProjectStore,
 } from "@/data/store";
-import { AVAILABLE_ENDPOINTS, type InputAsset } from "@/lib/fal";
+import { AVAILABLE_ENDPOINTS, type InputAsset, fal } from "@/lib/fal";
 import {
   ImageIcon,
   MicIcon,
@@ -52,7 +52,7 @@ import { enhancePrompt } from "@/lib/prompt";
 import { WithTooltip } from "./ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { VoiceSelector } from "./playht/voice-selector";
-import { LoadingIcon } from "./ui/icons";
+import { Icons } from "./ui/icons";
 import { getMediaMetadata } from "@/lib/ffmpeg";
 import CameraMovement from "./camera-control";
 import VideoFrameSelector from "./video-frame-selector";
@@ -121,6 +121,8 @@ export default function RightPanel({
     resetGenerateData,
     endpointId,
     setEndpointId,
+    storyGeneratorOpen,
+    setStoryGeneratorOpen,
   } = videoProjectStore;
 
   const [tab, setTab] = useState<string>("generation");
@@ -192,10 +194,10 @@ export default function RightPanel({
     const endpoint = AVAILABLE_ENDPOINTS.find(
       (endpoint) =>
         endpoint.category === mediaType ||
-        (mediaType === "img2img" && (
-          endpoint.endpointId === "rundiffusion-fal/juggernaut-flux/pro/image-to-image" ||
-          endpoint.category === "img2img"
-        ))
+        (mediaType === "img2img" &&
+          (endpoint.endpointId ===
+            "rundiffusion-fal/juggernaut-flux/pro/image-to-image" ||
+            endpoint.category === "img2img")),
     );
 
     const initialInput = endpoint?.initialInput || {};
@@ -215,11 +217,11 @@ export default function RightPanel({
       setEndpointId("text");
     } else if (mediaType === "img2img") {
       // Set default values for image-to-image transformation
-      setGenerateData({ 
-        image: null, 
+      setGenerateData({
+        image: null,
         prompt: "",
       });
-      
+
       // Use Juggernaut img2img endpoint as default
       setEndpointId("rundiffusion-fal/juggernaut-flux/pro/image-to-image");
     } else if (
@@ -390,29 +392,32 @@ export default function RightPanel({
       // Build the simplest img2img input
       const img2imgInput = {
         prompt: generateData.prompt || "",
-        image_url: generateData.image
+        image_url: generateData.image,
       };
-      
-      await createJob.mutateAsync({
-        projectId,
-        endpointId,
-        mediaType: "image",
-        input: img2imgInput
-      } as any, {
-        onSuccess: async () => {
-          if (!createJob.isError) {
-            handleOnOpenChange(false);
-          }
+
+      await createJob.mutateAsync(
+        {
+          projectId,
+          endpointId,
+          mediaType: "image",
+          input: img2imgInput,
+        } as any,
+        {
+          onSuccess: async () => {
+            if (!createJob.isError) {
+              handleOnOpenChange(false);
+            }
+          },
+          onError: (error) => {
+            console.warn("Failed to create img2img job", error);
+            toast({
+              title: "Failed to transform image",
+              description:
+                "Please ensure you've set your FAL KEY in the settings.",
+            });
+          },
         },
-        onError: (error) => {
-          console.warn("Failed to create img2img job", error);
-          toast({
-            title: "Failed to transform image",
-            description:
-              "Please ensure you've set your FAL KEY in the settings.",
-          });
-        },
-      });
+      );
       return;
     }
 
@@ -531,518 +536,531 @@ export default function RightPanel({
     <div
       className={cn(
         "flex flex-col border-l border-border w-[450px] z-50 transition-all duration-300 absolute top-0 h-full bg-background",
-        generateDialogOpen ? "right-0" : "-right-[450px]",
+        generateDialogOpen || storyGeneratorOpen ? "right-0" : "-right-[450px]",
       )}
     >
       <div className="flex-1 p-4 flex flex-col gap-4 border-b border-border h-full overflow-hidden relative">
         <div className="flex flex-row items-center justify-between">
           <h2 className="text-sm text-muted-foreground font-semibold flex-1">
-            Generate Media
+            {storyGeneratorOpen ? "Story Generator" : "Generate Media"}
           </h2>
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => handleOnOpenChange(false)}
+            onClick={() => {
+              if (storyGeneratorOpen) {
+                setStoryGeneratorOpen(false);
+              } else {
+                handleOnOpenChange(false);
+              }
+            }}
             className="flex items-center gap-2"
           >
             <XIcon className="w-6 h-6" />
           </Button>
         </div>
-        <div className="w-full flex flex-col">
-          <div className="flex w-full gap-2">
-            <Button
-              variant="ghost"
-              onClick={() => handleMediaTypeChange("image")}
-              className={cn(
-                mediaType === "image" && "bg-white/10",
-                "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
-              )}
-            >
-              <ImageIcon className="w-4 h-4 opacity-50" />
-              <span className="text-[10px]">Image</span>
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => handleMediaTypeChange("img2img")}
-              className={cn(
-                mediaType === "img2img" && "bg-white/10",
-                "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
-              )}
-            >
-              <ImageIcon className="w-4 h-4 opacity-50" />
-              <span className="text-[10px]">Img2Img</span>
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => handleMediaTypeChange("video")}
-              className={cn(
-                mediaType === "video" && "bg-white/10",
-                "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
-              )}
-            >
-              <VideoIcon className="w-4 h-4 opacity-50" />
-              <span className="text-[10px]">Video</span>
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => handleMediaTypeChange("text")}
-              className={cn(
-                mediaType === "text" && "bg-white/10",
-                "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
-              )}
-            >
-              <TypeIcon className="w-4 h-4 opacity-50" />
-              <span className="text-[10px]">Text</span>
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => handleMediaTypeChange("voiceover")}
-              className={cn(
-                mediaType === "voiceover" && "bg-white/10",
-                "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
-              )}
-            >
-              <MicIcon className="w-4 h-4 opacity-50" />
-              <span className="text-[10px]">Voiceover</span>
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => handleMediaTypeChange("music")}
-              className={cn(
-                mediaType === "music" && "bg-white/10",
-                "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
-              )}
-            >
-              <MusicIcon className="w-4 h-4 opacity-50" />
-              <span className="text-[10px]">Music</span>
-            </Button>
-          </div>
-          <div className="flex flex-col gap-2 mt-2 justify-start font-medium text-base">
-            <div className="text-muted-foreground">Using</div>
-            <ModelEndpointPicker
-              mediaType={mediaType}
-              value={endpointId}
-              onValueChange={(endpointId) => {
-                resetGenerateData();
-                setEndpointId(endpointId);
+        
+        {storyGeneratorOpen ? (
+          <StoryGenerator onClose={() => setStoryGeneratorOpen(false)} />
+        ) : (
+          <>
+            <div className="w-full flex flex-col">
+              <div className="flex w-full gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => handleMediaTypeChange("image")}
+                  className={cn(
+                    mediaType === "image" && "bg-white/10",
+                    "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
+                  )}
+                >
+                  <ImageIcon className="w-4 h-4 opacity-50" />
+                  <span className="text-[10px]">Image</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleMediaTypeChange("img2img")}
+                  className={cn(
+                    mediaType === "img2img" && "bg-white/10",
+                    "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
+                  )}
+                >
+                  <ImageIcon className="w-4 h-4 opacity-50" />
+                  <span className="text-[10px]">Img2Img</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleMediaTypeChange("video")}
+                  className={cn(
+                    mediaType === "video" && "bg-white/10",
+                    "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
+                  )}
+                >
+                  <VideoIcon className="w-4 h-4 opacity-50" />
+                  <span className="text-[10px]">Video</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleMediaTypeChange("text")}
+                  className={cn(
+                    mediaType === "text" && "bg-white/10",
+                    "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
+                  )}
+                >
+                  <TypeIcon className="w-4 h-4 opacity-50" />
+                  <span className="text-[10px]">Text</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleMediaTypeChange("voiceover")}
+                  className={cn(
+                    mediaType === "voiceover" && "bg-white/10",
+                    "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
+                  )}
+                >
+                  <MicIcon className="w-4 h-4 opacity-50" />
+                  <span className="text-[10px]">Voiceover</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleMediaTypeChange("music")}
+                  className={cn(
+                    mediaType === "music" && "bg-white/10",
+                    "h-14 flex flex-col justify-center w-1/6 rounded-md gap-2 items-center",
+                  )}
+                >
+                  <MusicIcon className="w-4 h-4 opacity-50" />
+                  <span className="text-[10px]">Music</span>
+                </Button>
+              </div>
+              <div className="flex flex-col gap-2 mt-2 justify-start font-medium text-base">
+                <div className="text-muted-foreground">Using</div>
+                <ModelEndpointPicker
+                  mediaType={mediaType}
+                  value={endpointId}
+                  onValueChange={(endpointId) => {
+                    resetGenerateData();
+                    setEndpointId(endpointId);
 
-                const endpoint = AVAILABLE_ENDPOINTS.find(
-                  (endpoint) => endpoint.endpointId === endpointId,
-                );
+                    const endpoint = AVAILABLE_ENDPOINTS.find(
+                      (endpoint) => endpoint.endpointId === endpointId,
+                    );
 
-                const initialInput = endpoint?.initialInput || {};
-                setGenerateData({ ...initialInput });
-              }}
-            />
-          </div>
-        </div>
-        <div className="flex flex-col gap-2 relative">
-          {endpoint?.inputAsset?.map((asset, index) => (
-            <div key={getAssetType(asset)} className="flex w-full">
-              <div className="flex flex-col w-full" key={getAssetType(asset)}>
-                <div className="flex justify-between">
-                  <h4 className="capitalize text-muted-foreground mb-2">
-                    {getAssetType(asset)} Reference
-                  </h4>
-                  {tab === `asset-${getAssetType(asset)}` && (
+                    const initialInput = endpoint?.initialInput || {};
+                    setGenerateData({ ...initialInput });
+                  }}
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 relative">
+              {endpoint?.inputAsset?.map((asset, index) => (
+                <div key={getAssetType(asset)} className="flex w-full">
+                  <div className="flex flex-col w-full" key={getAssetType(asset)}>
+                    <div className="flex justify-between">
+                      <h4 className="capitalize text-muted-foreground mb-2">
+                        {getAssetType(asset)} Reference
+                      </h4>
+                      {tab === `asset-${getAssetType(asset)}` && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => setTab("generation")}
+                          size="sm"
+                        >
+                          <ArrowLeft /> Back
+                        </Button>
+                      )}
+                    </div>
+                    {(tab === "generation" ||
+                      tab !== `asset-${getAssetType(asset)}`) &&
+                      !(
+                        mediaType === "img2img" && getAssetType(asset) === "image"
+                      ) && (
+                        <>
+                          {!generateData[getAssetKey(asset)] && (
+                            <div className="flex flex-col gap-2 justify-between">
+                              <Button
+                                variant="ghost"
+                                onClick={() => {
+                                  setTab(`asset-${getAssetType(asset)}`);
+                                  setAssetMediaType(getAssetType(asset) ?? "all");
+                                }}
+                                className="cursor-pointer min-h-[30px] flex flex-col items-center justify-center border border-dashed border-border rounded-md px-4"
+                              >
+                                <span className="text-muted-foreground text-xs text-center text-nowrap">
+                                  Select
+                                </span>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={isUploading}
+                                className="cursor-pointer min-h-[30px] flex flex-col items-center justify-center border border-dashed border-border rounded-md px-4"
+                                asChild
+                              >
+                                <label htmlFor="assetUploadButton">
+                                  <Input
+                                    id="assetUploadButton"
+                                    type="file"
+                                    className="hidden"
+                                    onChange={handleFileUpload}
+                                    multiple={false}
+                                    disabled={isUploading}
+                                    accept="image/*,audio/*,video/*"
+                                  />
+                                  {isUploading ? (
+                                    <LoaderCircleIcon className="w-4 h-4 opacity-50 animate-spin" />
+                                  ) : (
+                                    <span className="text-muted-foreground text-xs text-center text-nowrap">
+                                      Upload
+                                    </span>
+                                  )}
+                                </label>
+                              </Button>
+                            </div>
+                          )}
+                          {generateData[getAssetKey(asset)] && (
+                            <div className="cursor-pointer overflow-hidden relative w-full flex flex-col items-center justify-center border border-dashed border-border rounded-md">
+                              <WithTooltip tooltip="Remove media">
+                                <button
+                                  type="button"
+                                  className="p-1 rounded hover:bg-black/50 absolute top-1 z-50 bg-black/80 right-1 group-hover:text-white"
+                                  onClick={() =>
+                                    setGenerateData({
+                                      [getAssetKey(asset)]: undefined,
+                                    })
+                                  }
+                                >
+                                  <TrashIcon className="w-3 h-3 stroke-2" />
+                                </button>
+                              </WithTooltip>
+                              {generateData[getAssetKey(asset)] && (
+                                <SelectedAssetPreview
+                                  asset={asset}
+                                  data={generateData}
+                                />
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    {tab === `asset-${getAssetType(asset)}` && (
+                      <div className="flex items-center gap-2 flex-wrap overflow-y-auto max-h-80 divide-y divide-border">
+                        {mediaItems
+                          .filter((media) => {
+                            if (assetMediaType === "all") return true;
+                            if (
+                              assetMediaType === "audio" &&
+                              (media.mediaType === "voiceover" ||
+                                media.mediaType === "music")
+                            )
+                              return true;
+                            return media.mediaType === assetMediaType;
+                          })
+                          .map((job) => (
+                            <MediaItemRow
+                              draggable={false}
+                              key={job.id}
+                              data={job}
+                              onOpen={handleSelectMedia}
+                              className="cursor-pointer"
+                            />
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {endpoint?.prompt !== false && mediaType !== "text" && (
+                <div className="relative bg-border rounded-lg pb-10 placeholder:text-base w-full  resize-none">
+                  <Textarea
+                    className="text-base shadow-none focus:!ring-0 placeholder:text-base w-full h-32 resize-none"
+                    placeholder={
+                      mediaType === "img2img"
+                        ? "Describe how you want to transform the image..."
+                        : "Imagine..."
+                    }
+                    value={generateData.prompt}
+                    rows={3}
+                    onChange={(e) => setGenerateData({ prompt: e.target.value })}
+                  />
+                  <WithTooltip tooltip="Enhance your prompt with AI-powered suggestions.">
+                    <div className="absolute bottom-2 right-2">
+                      <Button
+                        variant="secondary"
+                        disabled={enhance.isPending}
+                        className="bg-purple-400/10 text-purple-400 text-xs rounded-full h-6 px-3"
+                        onClick={() => enhance.mutate()}
+                      >
+                        {enhance.isPending ? (
+                          <Icons.spinner className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <WandSparklesIcon className="opacity-50" />
+                        )}
+                        Enhance Prompt
+                      </Button>
+                    </div>
+                  </WithTooltip>
+                </div>
+              )}
+              {mediaType === "img2img" && (
+                <div className="space-y-4 mt-4">
+                  {!generateData.image ? (
+                    <ImgBox
+                      onImageSelect={(file) => setGenerateData({ image: file })}
+                      isUploading={isUploading}
+                    />
+                  ) : (
+                    <>
+                      <div className="relative border border-border rounded-md overflow-hidden">
+                        <img
+                          src={
+                            typeof generateData.image === "string"
+                              ? generateData.image
+                              : URL.createObjectURL(generateData.image)
+                          }
+                          alt="Source image"
+                          className="w-full h-auto"
+                        />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-2 right-2"
+                          onClick={() => setGenerateData({ image: null })}
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </Button>
+                      </div>
+
+                      <Button
+                        className="w-full mt-4"
+                        disabled={enhance.isPending || createJob.isPending}
+                        onClick={handleOnGenerate}
+                      >
+                        Transform Image
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            {tab === "generation" && (
+              <div className="flex flex-col gap-2 mb-2">
+                {endpoint?.imageForFrame && (
+                  <VideoFrameSelector
+                    mediaItems={mediaItems}
+                    onChange={(
+                      images: {
+                        start_frame_num: number;
+                        image_url: string | File;
+                      }[],
+                    ) => setGenerateData({ images })}
+                  />
+                )}
+                {endpoint?.cameraControl && (
+                  <CameraMovement
+                    value={generateData.advanced_camera_control}
+                    onChange={(val) =>
+                      setGenerateData({
+                        advanced_camera_control: val
+                          ? {
+                              movement_value: val.value,
+                              movement_type: val.movement,
+                            }
+                          : undefined,
+                      })
+                    }
+                  />
+                )}
+                {mediaType === "music" && endpointId === "fal-ai/playht/tts/v3" && (
+                  <div className="flex-1 flex flex-row gap-2">
+                    {mediaType === "music" && (
+                      <div className="flex flex-row items-center gap-1">
+                        <Label>Duration</Label>
+                        <Input
+                          className="w-12 text-center tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          min={5}
+                          max={30}
+                          step={1}
+                          type="number"
+                          value={generateData.duration}
+                          onChange={(e) =>
+                            setGenerateData({
+                              duration: Number.parseInt(e.target.value),
+                            })
+                          }
+                        />
+                        <span>s</span>
+                      </div>
+                    )}
+                    {endpointId === "fal-ai/playht/tts/v3" && (
+                      <VoiceSelector
+                        value={generateData.voice}
+                        onValueChange={(voice) => {
+                          setGenerateData({ voice });
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
+                {mediaType === "text" && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Text Content</Label>
+                      <Textarea
+                        placeholder="Enter your text..."
+                        value={generateData.text || ""}
+                        onChange={(e) =>
+                          setGenerateData({ ...generateData, text: e.target.value })
+                        }
+                        className="min-h-[100px]"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Font Family</Label>
+                      <Select
+                        value={generateData.style?.fontFamily || "Roboto"}
+                        onValueChange={(value) =>
+                          setGenerateData({
+                            ...generateData,
+                            style: { ...generateData.style, fontFamily: value },
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select font" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {POPULAR_FONTS.map((font) => (
+                            <SelectItem key={font.family} value={font.family}>
+                              <span style={{ fontFamily: font.family }}>
+                                {font.family}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Font Size</Label>
+                      <div className="flex items-center gap-2">
+                        <Slider
+                          value={[generateData.style?.fontSize || 48]}
+                          onValueChange={([value]) =>
+                            setGenerateData({
+                              ...generateData,
+                              style: { ...generateData.style, fontSize: value },
+                            })
+                          }
+                          min={12}
+                          max={200}
+                          step={1}
+                          className="flex-1"
+                        />
+                        <span className="text-sm text-muted-foreground w-12 text-right">
+                          {generateData.style?.fontSize || 48}px
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Text Color</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="color"
+                          value={generateData.style?.color || "#ffffff"}
+                          onChange={(e) =>
+                            setGenerateData({
+                              ...generateData,
+                              style: {
+                                ...generateData.style,
+                                color: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-20 h-10 p-1"
+                        />
+                        <Input
+                          type="text"
+                          value={generateData.style?.color || "#ffffff"}
+                          onChange={(e) =>
+                            setGenerateData({
+                              ...generateData,
+                              style: {
+                                ...generateData.style,
+                                color: e.target.value,
+                              },
+                            })
+                          }
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Position</Label>
+                      <Select
+                        value={generateData.style?.position || "center"}
+                        onValueChange={(value: "top" | "center" | "bottom") =>
+                          setGenerateData({
+                            ...generateData,
+                            style: { ...generateData.style, position: value },
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select position" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="top">Top</SelectItem>
+                          <SelectItem value="center">Center</SelectItem>
+                          <SelectItem value="bottom">Bottom</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Duration (seconds)</Label>
+                      <div className="flex items-center gap-2">
+                        <Slider
+                          value={[generateData.duration || 5]}
+                          onValueChange={([value]) =>
+                            setGenerateData({ ...generateData, duration: value })
+                          }
+                          min={1}
+                          max={30}
+                          step={1}
+                          className="flex-1"
+                        />
+                        <span className="text-sm text-muted-foreground w-12 text-right">
+                          {generateData.duration || 5}s
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-row gap-2">
+                  {!(mediaType === "img2img" && generateData.image) && (
                     <Button
-                      variant="ghost"
-                      onClick={() => setTab("generation")}
-                      size="sm"
+                      className="w-full"
+                      disabled={
+                        enhance.isPending ||
+                        createJob.isPending ||
+                        (mediaType === "img2img" && !generateData.image)
+                      }
+                      onClick={handleOnGenerate}
                     >
-                      <ArrowLeft /> Back
+                      {mediaType === "text" ? "Add Text" : "Generate"}
                     </Button>
                   )}
                 </div>
-                {(tab === "generation" ||
-                  tab !== `asset-${getAssetType(asset)}`) && 
-                  !(mediaType === "img2img" && getAssetType(asset) === "image") && (
-                  <>
-                    {!generateData[getAssetKey(asset)] && (
-                      <div className="flex flex-col gap-2 justify-between">
-                        <Button
-                          variant="ghost"
-                          onClick={() => {
-                            setTab(`asset-${getAssetType(asset)}`);
-                            setAssetMediaType(getAssetType(asset) ?? "all");
-                          }}
-                          className="cursor-pointer min-h-[30px] flex flex-col items-center justify-center border border-dashed border-border rounded-md px-4"
-                        >
-                          <span className="text-muted-foreground text-xs text-center text-nowrap">
-                            Select
-                          </span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={isUploading}
-                          className="cursor-pointer min-h-[30px] flex flex-col items-center justify-center border border-dashed border-border rounded-md px-4"
-                          asChild
-                        >
-                          <label htmlFor="assetUploadButton">
-                            <Input
-                              id="assetUploadButton"
-                              type="file"
-                              className="hidden"
-                              onChange={handleFileUpload}
-                              multiple={false}
-                              disabled={isUploading}
-                              accept="image/*,audio/*,video/*"
-                            />
-                            {isUploading ? (
-                              <LoaderCircleIcon className="w-4 h-4 opacity-50 animate-spin" />
-                            ) : (
-                              <span className="text-muted-foreground text-xs text-center text-nowrap">
-                                Upload
-                              </span>
-                            )}
-                          </label>
-                        </Button>
-                      </div>
-                    )}
-                    {generateData[getAssetKey(asset)] && (
-                      <div className="cursor-pointer overflow-hidden relative w-full flex flex-col items-center justify-center border border-dashed border-border rounded-md">
-                        <WithTooltip tooltip="Remove media">
-                          <button
-                            type="button"
-                            className="p-1 rounded hover:bg-black/50 absolute top-1 z-50 bg-black/80 right-1 group-hover:text-white"
-                            onClick={() =>
-                              setGenerateData({
-                                [getAssetKey(asset)]: undefined,
-                              })
-                            }
-                          >
-                            <TrashIcon className="w-3 h-3 stroke-2" />
-                          </button>
-                        </WithTooltip>
-                        {generateData[getAssetKey(asset)] && (
-                          <SelectedAssetPreview
-                            asset={asset}
-                            data={generateData}
-                          />
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-                {tab === `asset-${getAssetType(asset)}` && (
-                  <div className="flex items-center gap-2 flex-wrap overflow-y-auto max-h-80 divide-y divide-border">
-                    {mediaItems
-                      .filter((media) => {
-                        if (assetMediaType === "all") return true;
-                        if (
-                          assetMediaType === "audio" &&
-                          (media.mediaType === "voiceover" ||
-                            media.mediaType === "music")
-                        )
-                          return true;
-                        return media.mediaType === assetMediaType;
-                      })
-                      .map((job) => (
-                        <MediaItemRow
-                          draggable={false}
-                          key={job.id}
-                          data={job}
-                          onOpen={handleSelectMedia}
-                          className="cursor-pointer"
-                        />
-                      ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-          {endpoint?.prompt !== false && mediaType !== "text" && (
-            <div className="relative bg-border rounded-lg pb-10 placeholder:text-base w-full  resize-none">
-              <Textarea
-                className="text-base shadow-none focus:!ring-0 placeholder:text-base w-full h-32 resize-none"
-                placeholder={
-                  mediaType === "img2img"
-                    ? "Describe how you want to transform the image..."
-                    : "Imagine..."
-                }
-                value={generateData.prompt}
-                rows={3}
-                onChange={(e) => setGenerateData({ prompt: e.target.value })}
-              />
-              <WithTooltip tooltip="Enhance your prompt with AI-powered suggestions.">
-                <div className="absolute bottom-2 right-2">
-                  <Button
-                    variant="secondary"
-                    disabled={enhance.isPending}
-                    className="bg-purple-400/10 text-purple-400 text-xs rounded-full h-6 px-3"
-                    onClick={() => enhance.mutate()}
-                  >
-                    {enhance.isPending ? (
-                      <LoadingIcon />
-                    ) : (
-                      <WandSparklesIcon className="opacity-50" />
-                    )}
-                    Enhance Prompt
-                  </Button>
-                </div>
-              </WithTooltip>
-            </div>
-          )}
-          {mediaType === "img2img" && (
-            <div className="space-y-4 mt-4">
-              {!generateData.image ? (
-                <ImgBox 
-                  onImageSelect={(file) => setGenerateData({ image: file })}
-                  isUploading={isUploading}
-                />
-              ) : (
-                <>
-                  <div className="relative border border-border rounded-md overflow-hidden">
-                    <img 
-                      src={typeof generateData.image === 'string' 
-                        ? generateData.image 
-                        : URL.createObjectURL(generateData.image)
-                      } 
-                      alt="Source image" 
-                      className="w-full h-auto"
-                    />
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="absolute top-2 right-2"
-                      onClick={() => setGenerateData({ image: null })}
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  
-                  <Button
-                    className="w-full mt-4"
-                    disabled={enhance.isPending || createJob.isPending}
-                    onClick={handleOnGenerate}
-                  >
-                    Transform Image
-                  </Button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-        {tab === "generation" && (
-          <div className="flex flex-col gap-2 mb-2">
-            {endpoint?.imageForFrame && (
-              <VideoFrameSelector
-                mediaItems={mediaItems}
-                onChange={(
-                  images: {
-                    start_frame_num: number;
-                    image_url: string | File;
-                  }[],
-                ) => setGenerateData({ images })}
-              />
-            )}
-            {endpoint?.cameraControl && (
-              <CameraMovement
-                value={generateData.advanced_camera_control}
-                onChange={(val) =>
-                  setGenerateData({
-                    advanced_camera_control: val
-                      ? {
-                          movement_value: val.value,
-                          movement_type: val.movement,
-                        }
-                      : undefined,
-                  })
-                }
-              />
-            )}
-            {mediaType === "music" && endpointId === "fal-ai/playht/tts/v3" && (
-              <div className="flex-1 flex flex-row gap-2">
-                {mediaType === "music" && (
-                  <div className="flex flex-row items-center gap-1">
-                    <Label>Duration</Label>
-                    <Input
-                      className="w-12 text-center tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      min={5}
-                      max={30}
-                      step={1}
-                      type="number"
-                      value={generateData.duration}
-                      onChange={(e) =>
-                        setGenerateData({
-                          duration: Number.parseInt(e.target.value),
-                        })
-                      }
-                    />
-                    <span>s</span>
-                  </div>
-                )}
-                {endpointId === "fal-ai/playht/tts/v3" && (
-                  <VoiceSelector
-                    value={generateData.voice}
-                    onValueChange={(voice) => {
-                      setGenerateData({ voice });
-                    }}
-                  />
-                )}
               </div>
             )}
-            {mediaType === "text" && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Text Content</Label>
-                  <Textarea
-                    placeholder="Enter your text..."
-                    value={generateData.text || ""}
-                    onChange={(e) =>
-                      setGenerateData({ ...generateData, text: e.target.value })
-                    }
-                    className="min-h-[100px]"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Font Family</Label>
-                  <Select
-                    value={generateData.style?.fontFamily || "Roboto"}
-                    onValueChange={(value) =>
-                      setGenerateData({
-                        ...generateData,
-                        style: { ...generateData.style, fontFamily: value },
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select font" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {POPULAR_FONTS.map((font) => (
-                        <SelectItem key={font.family} value={font.family}>
-                          <span style={{ fontFamily: font.family }}>
-                            {font.family}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Font Size</Label>
-                  <div className="flex items-center gap-2">
-                    <Slider
-                      value={[generateData.style?.fontSize || 48]}
-                      onValueChange={([value]) =>
-                        setGenerateData({
-                          ...generateData,
-                          style: { ...generateData.style, fontSize: value },
-                        })
-                      }
-                      min={12}
-                      max={200}
-                      step={1}
-                      className="flex-1"
-                    />
-                    <span className="text-sm text-muted-foreground w-12 text-right">
-                      {generateData.style?.fontSize || 48}px
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Text Color</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="color"
-                      value={generateData.style?.color || "#ffffff"}
-                      onChange={(e) =>
-                        setGenerateData({
-                          ...generateData,
-                          style: {
-                            ...generateData.style,
-                            color: e.target.value,
-                          },
-                        })
-                      }
-                      className="w-20 h-10 p-1"
-                    />
-                    <Input
-                      type="text"
-                      value={generateData.style?.color || "#ffffff"}
-                      onChange={(e) =>
-                        setGenerateData({
-                          ...generateData,
-                          style: {
-                            ...generateData.style,
-                            color: e.target.value,
-                          },
-                        })
-                      }
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Position</Label>
-                  <Select
-                    value={generateData.style?.position || "center"}
-                    onValueChange={(value: "top" | "center" | "bottom") =>
-                      setGenerateData({
-                        ...generateData,
-                        style: { ...generateData.style, position: value },
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select position" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="top">Top</SelectItem>
-                      <SelectItem value="center">Center</SelectItem>
-                      <SelectItem value="bottom">Bottom</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Duration (seconds)</Label>
-                  <div className="flex items-center gap-2">
-                    <Slider
-                      value={[generateData.duration || 5]}
-                      onValueChange={([value]) =>
-                        setGenerateData({ ...generateData, duration: value })
-                      }
-                      min={1}
-                      max={30}
-                      step={1}
-                      className="flex-1"
-                    />
-                    <span className="text-sm text-muted-foreground w-12 text-right">
-                      {generateData.duration || 5}s
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <div className="flex flex-row gap-2">
-              {!(mediaType === "img2img" && generateData.image) && (
-                <Button
-                  className="w-full"
-                  disabled={
-                    enhance.isPending || 
-                    createJob.isPending || 
-                    (mediaType === "img2img" && !generateData.image)
-                  }
-                  onClick={handleOnGenerate}
-                >
-                  {mediaType === "text" 
-                    ? "Add Text"
-                    : "Generate"
-                  }
-                </Button>
-              )}
-            </div>
-          </div>
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background to-transparent via-background via-60% h-8 pointer-events-none" />
+          </>
         )}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background to-transparent via-background via-60% h-8 pointer-events-none" />
       </div>
     </div>
   );
@@ -1103,30 +1121,32 @@ const SelectedAssetPreview = ({
   );
 };
 
-const ImgBox = ({ 
-  onImageSelect, 
-  isUploading 
-}: { 
-  onImageSelect: (file: File) => void; 
-  isUploading: boolean; 
+const ImgBox = ({
+  onImageSelect,
+  isUploading,
+}: {
+  onImageSelect: (file: File) => void;
+  isUploading: boolean;
 }) => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
-      'image/*': []
+      "image/*": [],
     },
     onDrop: (acceptedFiles) => {
       if (acceptedFiles?.length > 0) {
         onImageSelect(acceptedFiles[0]);
       }
-    }
+    },
   });
 
   return (
-    <div 
-      {...getRootProps()} 
+    <div
+      {...getRootProps()}
       className={cn(
         "border-2 border-dashed rounded-md p-6 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2",
-        isDragActive ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground"
+        isDragActive
+          ? "border-primary bg-primary/5"
+          : "border-border hover:border-muted-foreground",
       )}
     >
       <input {...getInputProps()} />
@@ -1146,3 +1166,432 @@ const ImgBox = ({
     </div>
   );
 };
+
+function StoryGenerator({ onClose }: { onClose: () => void }) {
+  const [baseIdea, setBaseIdea] = useState("");
+  const [cleanedIdea, setCleanedIdea] = useState("");
+  const [storyGenerated, setStoryGenerated] = useState(false);
+  const [storyApproved, setStoryApproved] = useState(false);
+  const [firstImageGenerated, setFirstImageGenerated] = useState(false);
+  const [imageApproved, setImageApproved] = useState(false);
+  const [allImagesGenerated, setAllImagesGenerated] = useState(false);
+  const [videoGenerated, setVideoGenerated] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [storySteps, setStorySteps] = useState<string[]>([]);
+  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [firstImage, setFirstImage] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [selectedModel, setSelectedModel] = useState("fal-ai/luma-dream-machine");
+  const [videoPrompt, setVideoPrompt] = useState("");
+  
+  const projectId = useProjectId();
+  const queryClient = useQueryClient();
+  const setSelectedMediaId = useVideoProjectStore((s) => s.setSelectedMediaId);
+
+  // Function to add media directly to the database
+  const addMedia = async (mediaData: { url: string; type: string; name: string }) => {
+    const mediaItem: Omit<MediaItem, "id"> = {
+      projectId,
+      kind: "generated",
+      createdAt: Date.now(),
+      mediaType: mediaData.type as "video" | "image" | "music" | "voiceover" | "text",
+      status: "completed",
+      url: mediaData.url,
+      metadata: {
+        title: mediaData.name
+      }
+    };
+
+    const mediaId = await db.media.create(mediaItem);
+    const media = await db.media.find(mediaId as string);
+    return media;
+  };
+
+  const generateCleanIdea = async () => {
+    if (!baseIdea.trim()) return;
+    setLoading(true);
+    
+    try {
+      // Use LLM to clean up and refine the base idea
+      const response = await fal.subscribe("fal-ai/llm", {
+        input: {
+          model: "meta-llama/Llama-3-70b-chat-hf",
+          prompt: `Take this rough idea for a short video and refine it into a clear, concise concept description that could be used for video creation: "${baseIdea}"`,
+          stream: false,
+          max_tokens: 300,
+        }
+      });
+      
+      // @ts-ignore - the fal API types don't match the actual response
+      setCleanedIdea(response.output.response);
+      setStoryGenerated(true);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error generating cleaned idea:", error);
+      setLoading(false);
+    }
+  };
+
+  const generateStory = async () => {
+    setLoading(true);
+    
+    try {
+      // Generate story steps using LLM
+      const response = await fal.subscribe("fal-ai/llm", {
+        input: {
+          model: "meta-llama/Llama-3-70b-chat-hf",
+          prompt: `Create a storyboard for a short video based on this concept: "${cleanedIdea}". 
+                  Provide 5-10 key scenes that would work well for a 30-second to 5-minute video. 
+                  For each scene, provide a detailed description that could be used for image generation.`,
+          stream: false,
+          max_tokens: 1000,
+        }
+      });
+      
+      // Parse the response to extract scene descriptions
+      // @ts-ignore - the fal API types don't match the actual response
+      const scenes = response.output.response
+        .split(/Scene \d+:|Step \d+:/)
+        .filter(Boolean)
+        .map((scene: string) => scene.trim());
+      
+      setStorySteps(scenes);
+      setStoryApproved(true);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error generating story:", error);
+      setLoading(false);
+    }
+  };
+
+  const generateFirstImage = async () => {
+    if (storySteps.length === 0) return;
+    setLoading(true);
+    
+    try {
+      // Generate first image for art direction approval
+      const response = await fal.subscribe("fal-ai/stable-diffusion-v35-large", {
+        input: {
+          prompt: storySteps[0],
+          negative_prompt: "poor quality, blurry, distorted, unrealistic",
+          // @ts-ignore - the fal API types are incorrect
+          width: 768,
+          // @ts-ignore - the fal API types are incorrect
+          height: 768,
+        }
+      });
+      
+      // @ts-ignore - the fal API types don't match the actual response
+      setFirstImage(response.output.images[0].url);
+      setFirstImageGenerated(true);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error generating first image:", error);
+      setLoading(false);
+    }
+  };
+
+  const regenerateFirstImage = () => {
+    setFirstImageGenerated(false);
+    setFirstImage("");
+    generateFirstImage();
+  };
+
+  const approveImage = () => {
+    setImageApproved(true);
+  };
+
+  const generateAllImages = async () => {
+    setLoading(true);
+    const images: string[] = [];
+    
+    try {
+      // Generate an image for each story step
+      for (const step of storySteps) {
+        const response = await fal.subscribe("fal-ai/stable-diffusion-v35-large", {
+          input: {
+            prompt: step,
+            negative_prompt: "poor quality, blurry, distorted, unrealistic",
+            // @ts-ignore - the fal API types are incorrect
+            width: 768,
+            // @ts-ignore - the fal API types are incorrect
+            height: 768,
+          }
+        });
+        
+        // @ts-ignore - the fal API types don't match the actual response
+        images.push(response.output.images[0].url);
+      }
+      
+      setGeneratedImages(images);
+      setAllImagesGenerated(true);
+      
+      // Prepare video prompt based on the story
+      const videoPromptText = `Create a video that tells this story: ${cleanedIdea}`;
+      setVideoPrompt(videoPromptText);
+      
+      setLoading(false);
+    } catch (error) {
+      console.error("Error generating all images:", error);
+      setLoading(false);
+    }
+  };
+
+  const generateVideo = async () => {
+    setLoading(true);
+    
+    try {
+      // Use the selected model to generate a video from the images
+      const response = await fal.subscribe(selectedModel, {
+        input: {
+          prompt: videoPrompt,
+          image_url: generatedImages[0], // Use the first image as reference
+        }
+      });
+      
+      // Get the video URL from the response
+      // @ts-ignore - the fal API types don't match the actual response
+      const videoUrl = response.output.video_url || response.output.url;
+      setVideoUrl(videoUrl);
+      setVideoGenerated(true);
+      
+      // Add the video to the gallery
+      const media = await addMedia({
+        url: videoUrl,
+        type: "video",
+        name: cleanedIdea.slice(0, 30) + "...",
+      });
+      
+      if (media) {
+        setSelectedMediaId(media.id);
+        // Refresh the gallery
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.projectMediaItems(projectId),
+        });
+      }
+      
+      setLoading(false);
+      onClose();
+    } catch (error) {
+      console.error("Error generating video:", error);
+      setLoading(false);
+    }
+  };
+
+  const renderStep = () => {
+    if (!storyGenerated) {
+      return (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Enter your base idea for a video</Label>
+            <Textarea
+              placeholder="Enter your base idea here..."
+              value={baseIdea}
+              onChange={(e) => setBaseIdea(e.target.value)}
+              className="min-h-32"
+            />
+          </div>
+          <Button 
+            className="w-full" 
+            onClick={generateCleanIdea} 
+            disabled={!baseIdea.trim() || loading}
+          >
+            {loading ? <Icons.spinner className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Generate Story
+          </Button>
+        </div>
+      );
+    }
+    
+    if (storyGenerated && !storyApproved) {
+      return (
+        <div className="space-y-4">
+          <div>
+            <Label>Refined Concept</Label>
+            <div className="p-4 rounded-md bg-muted mt-2">
+              <p>{cleanedIdea}</p>
+            </div>
+          </div>
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={() => setStoryGenerated(false)}>
+              Go Back
+            </Button>
+            <Button onClick={generateStory} disabled={loading}>
+              {loading ? <Icons.spinner className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Approve & Generate Storyboard
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    
+    if (storyApproved && !firstImageGenerated) {
+      return (
+        <div className="space-y-4">
+          <div>
+            <Label>Storyboard</Label>
+            <div className="space-y-2 mt-2 max-h-[300px] overflow-y-auto pr-2">
+              {storySteps.map((step, index) => (
+                <div key={index} className="p-3 rounded-md bg-muted">
+                  <p className="font-semibold text-sm">Scene {index + 1}</p>
+                  <p className="text-sm">{step}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={() => setStoryApproved(false)}>
+              Go Back
+            </Button>
+            <Button onClick={generateFirstImage} disabled={loading}>
+              {loading ? <Icons.spinner className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Generate First Image
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    
+    if (firstImageGenerated && !imageApproved) {
+      return (
+        <div className="space-y-4">
+          <div>
+            <Label>Art Direction</Label>
+            {firstImage && (
+              <div className="relative w-full h-64 mt-2">
+                <img 
+                  src={firstImage} 
+                  alt="First image for story" 
+                  className="object-contain rounded-md w-full h-full"
+                />
+              </div>
+            )}
+          </div>
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={regenerateFirstImage}>
+              Regenerate
+            </Button>
+            <Button onClick={approveImage} disabled={loading}>
+              Approve Art Direction
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    
+    if (imageApproved && !allImagesGenerated) {
+      return (
+        <div className="space-y-4">
+          <div>
+            <Label>First Image</Label>
+            {firstImage && (
+              <div className="relative w-full h-64 mt-2">
+                <img 
+                  src={firstImage} 
+                  alt="First image for story" 
+                  className="object-contain rounded-md w-full h-full"
+                />
+              </div>
+            )}
+          </div>
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={() => setImageApproved(false)}>
+              Go Back
+            </Button>
+            <Button onClick={generateAllImages} disabled={loading}>
+              {loading ? <Icons.spinner className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Generate All Images
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    
+    if (allImagesGenerated && !videoGenerated) {
+      return (
+        <div className="space-y-4">
+          <div>
+            <Label>Generated Images</Label>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              {generatedImages.slice(0, 4).map((image, index) => (
+                <div key={index} className="relative h-24">
+                  <img 
+                    src={image} 
+                    alt={`Scene ${index + 1}`} 
+                    className="object-cover rounded-md w-full h-full"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Select Video Model</Label>
+            <Select 
+              value={selectedModel}
+              onValueChange={setSelectedModel}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fal-ai/luma-dream-machine">Luma Dream Machine</SelectItem>
+                <SelectItem value="fal-ai/minimax/video-01-live">Minimax Video</SelectItem>
+                <SelectItem value="fal-ai/kling-video/v1.5/pro">Kling 1.5 Pro</SelectItem>
+                <SelectItem value="fal-ai/veo2">Veo 2</SelectItem>
+                <SelectItem value="fal-ai/ltx-video-v095/multiconditioning">LTX Video</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Video Generation Prompt</Label>
+            <Textarea
+              value={videoPrompt}
+              onChange={(e) => setVideoPrompt(e.target.value)}
+              className="min-h-20"
+            />
+          </div>
+          
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={() => setAllImagesGenerated(false)}>
+              Go Back
+            </Button>
+            <Button onClick={generateVideo} disabled={loading}>
+              {loading ? <Icons.spinner className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Generate Video
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    
+    if (videoGenerated) {
+      return (
+        <div className="space-y-4">
+          <div>
+            <Label>Generated Video</Label>
+            {videoUrl && (
+              <video 
+                src={videoUrl} 
+                controls 
+                className="w-full rounded-md mt-2"
+              />
+            )}
+          </div>
+          <Button className="w-full" onClick={onClose}>
+            Complete
+          </Button>
+        </div>
+      );
+    }
+    
+    return null;
+  };
+
+  return (
+    <div className="flex flex-col gap-4 w-full overflow-y-auto pr-2">
+      {renderStep()}
+    </div>
+  );
+}

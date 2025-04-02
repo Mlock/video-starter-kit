@@ -22,6 +22,7 @@ import {
   CloudUploadIcon,
   SparklesIcon,
   TypeIcon,
+  BookOpenIcon,
 } from "lucide-react";
 import { MediaItemPanel } from "./media-panel";
 import { Button } from "./ui/button";
@@ -59,6 +60,7 @@ export default function LeftPanel() {
     (s) => s.setProjectDialogOpen,
   );
   const openGenerateDialog = useVideoProjectStore((s) => s.openGenerateDialog);
+  const setStoryGeneratorOpen = useVideoProjectStore((s) => s.setStoryGeneratorOpen);
 
   const { startUpload, isUploading } = useUploadThing("fileUploader");
 
@@ -268,16 +270,26 @@ export default function LeftPanel() {
               </label>
             </Button>
           </div>
-          {mediaItems.length > 0 && (
+          <div className="flex gap-2">
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => openGenerateDialog()}
+              onClick={() => setStoryGeneratorOpen(true)}
             >
-              <SparklesIcon className="w-4 h-4 opacity-50" />
-              Generate...
+              <BookOpenIcon className="w-4 h-4 opacity-50" />
+              Story
             </Button>
-          )}
+            {mediaItems.length > 0 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => openGenerateDialog()}
+              >
+                <SparklesIcon className="w-4 h-4 opacity-50" />
+                Generate...
+              </Button>
+            )}
+          </div>
         </div>
         {!isLoading && mediaItems.length === 0 && (
           <div className="h-full flex flex-col items-center justify-center gap-4 px-4">

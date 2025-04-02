@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Logo } from "./logo";
-import { SettingsIcon } from "lucide-react";
+import { SettingsIcon, KeyIcon } from "lucide-react";
 import { useState } from "react";
 import { AuthDialog } from "./auth-dialog";
 import { useAuth } from "@/contexts/auth-context";

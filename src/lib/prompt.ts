@@ -32,11 +32,11 @@ export async function enhancePrompt(
 ): Promise<string> {
   const { type, project } = options;
   let prompt_type = options.type || "image";
-  
+
   if (prompt_type === "img2img") {
     prompt_type = "image"; // Use image prompt enhancement for img2img
   }
-  
+
   const projectInfo = !project
     ? ""
     : `

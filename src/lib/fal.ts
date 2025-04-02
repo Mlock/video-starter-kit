@@ -249,11 +249,11 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
   {
     endpointId: "rundiffusion-fal/juggernaut-flux/pro/image-to-image",
     label: "juggernaut flux pro Image to Image",
-    description: "Juggernaut Pro Flux by RunDiffusion is the flagship Juggernaut model rivaling some of the most advanced image models available",
+    description:
+      "Juggernaut Pro Flux by RunDiffusion is the flagship Juggernaut model rivaling some of the most advanced image models available",
     cost: "",
     inputAsset: ["image"],
     category: "img2img",
     prompt: true,
   },
-
 ];
