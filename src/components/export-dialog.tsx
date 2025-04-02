@@ -16,7 +16,7 @@ import {
 import { fal } from "@/lib/fal";
 import { Button } from "./ui/button";
 import { useProjectId, useVideoProjectStore } from "@/data/store";
-import { LoadingIcon } from "./ui/icons";
+import { Icons } from "./ui/icons";
 import {
   CopyIcon,
   DownloadIcon,
@@ -136,7 +136,7 @@ export function ExportDialog({ onOpenChange, ...props }: ExportDialogProps) {
               )}
             >
               {exportVideo.isPending ? (
-                <LoadingIcon className="w-24 h-24" />
+                <Icons.spinner className="w-24 h-24" />
               ) : (
                 <FilmIcon className="w-24 h-24 opacity-50" />
               )}

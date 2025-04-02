@@ -256,4 +256,36 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     category: "img2img",
     prompt: true,
   },
+  {
+    endpointId: "fal-ai/any-llm",
+    label: "Any LLM",
+    description: "Use any large language model from the selected catalog",
+    cost: "",
+    category: "text",
+    inputAsset: [],
+    initialInput: {
+      model: "google/gemini-flash-1.5",
+    },
+  },
+  {
+    endpointId: "fal-ai/stable-diffusion-xl",
+    label: "Stable Diffusion XL",
+    description: "High-quality image generation",
+    cost: "",
+    category: "image",
+  },
+  {
+    endpointId: "stability-ai/sdxl",
+    label: "SDXL by Stability",
+    description: "Stability AI's SDXL",
+    cost: "",
+    category: "image",
+  },
+  {
+    endpointId: "fal-ai/fast-sdxl",
+    label: "Fast SDXL",
+    description: "Optimized SDXL for faster inference",
+    cost: "",
+    category: "image",
+  },
 ];

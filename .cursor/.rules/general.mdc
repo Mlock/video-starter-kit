@@ -21,12 +21,18 @@ This is a web app template
 
 ## Tech stack
 
-- Frontend: Next.js, Tailwind, Shadcn, Framer Motion, Fal.ai
-- Backend: Supabase
-- Auth: Supabase
-- Payments: stripe
-- Sharing: upstash
-- Fileupload: UPLOADTHING
+- Frontend: Next.js, Tailwind, Shadcn, Framer Motion
+- Ai model infrastructure: fal.ai - [fal.ai](https://fal.ai)
+- Backend: Supabase - [Supabase](https://supabase.com)
+- Auth: Supabase - [Supabase](https://supabase.com)
+- Payments: stripe - [Stripe](https://stripe.com)
+- Sharing: upstash - [Upstash](https://upstash.com)
+- Fileupload: UploadThing - [UploadThing](https://uploadthing.com)
+- Deployment Platform: Vercel [Vercel](https://vercel.com)
+- Video processing: [Remotion](https://remotion.dev)
 
 ## Next.js
 - using page router. not app router. 
+
+## Original repo
+This project is a fork of fal.ai's ai video starter kit: [AI Video Starter Kit](https://github.com/fal-ai-community/video-starter-kit/blob/main/src/app/opengraph-image.png?raw=true)

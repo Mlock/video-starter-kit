@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import { LoadingIcon } from "./ui/icons";
+import { Icons } from "./ui/icons";
 import { Input } from "./ui/input";
 import { Separator } from "./ui/separator";
 import { Skeleton } from "./ui/skeleton";
@@ -156,7 +156,7 @@ export function ProjectDialog({ onOpenChange, ...props }: ProjectDialogProps) {
                   onClick={() => suggestProject.mutate()}
                 >
                   {suggestProject.isPending ? (
-                    <LoadingIcon />
+                    <Icons.spinner className="animate-spin" />
                   ) : (
                     <WandSparklesIcon className="opacity-50" />
                   )}

@@ -36,7 +36,7 @@ import { Separator } from "./ui/separator";
 import { formatDuration } from "date-fns";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/data/db";
-import { LoadingIcon } from "./ui/icons";
+import { Icons } from "./ui/icons";
 import { AVAILABLE_ENDPOINTS } from "@/lib/fal";
 
 type MediaGallerySheetProps = ComponentProps<typeof Sheet> & {
@@ -319,7 +319,7 @@ export function MediaGallerySheet({
                 onClick={() => deleteMedia.mutate()}
               >
                 {deleteMedia.isPending ? (
-                  <LoadingIcon />
+                  <Icons.spinner className="w-4 h-4 animate-spin" />
                 ) : (
                   <TrashIcon className="w-4 h-4 opacity-50" />
                 )}

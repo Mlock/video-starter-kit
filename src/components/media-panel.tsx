@@ -23,7 +23,7 @@ import {
   createElement,
 } from "react";
 import { Badge } from "./ui/badge";
-import { LoadingIcon } from "./ui/icons";
+import { Icons } from "./ui/icons";
 import { useToast } from "@/hooks/use-toast";
 import { getMediaMetadata } from "@/lib/ffmpeg";
 
@@ -189,7 +189,7 @@ export function MediaItemRow({
           </>
         ) : (
           <div className="w-full h-full bg-white/5 flex items-center justify-center text-muted-foreground">
-            {data.status === "running" && <LoadingIcon className="w-8 h-8" />}
+            {data.status === "running" && <Icons.spinner className="w-8 h-8" />}
             {data.status === "pending" && (
               <HourglassIcon className="w-8 h-8 animate-spin ease-in-out delay-700 duration-1000" />
             )}

@@ -60,7 +60,9 @@ export default function LeftPanel() {
     (s) => s.setProjectDialogOpen,
   );
   const openGenerateDialog = useVideoProjectStore((s) => s.openGenerateDialog);
-  const setStoryGeneratorOpen = useVideoProjectStore((s) => s.setStoryGeneratorOpen);
+  const setStoryGeneratorOpen = useVideoProjectStore(
+    (s) => s.setStoryGeneratorOpen,
+  );
 
   const { startUpload, isUploading } = useUploadThing("fileUploader");
 
