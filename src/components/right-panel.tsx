@@ -60,6 +60,7 @@ import { Slider } from "@/components/ui/slider";
 import { useDropzone } from "react-dropzone";
 import { Loader2, Upload } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
+import { toast } from "@/hooks/use-toast";
 
 type ModelEndpointPickerProps = {
   mediaType: string;
@@ -166,6 +167,7 @@ export default function RightPanel({
       toast({
         title: "Failed to enhance prompt",
         description: "There was an unexpected error. Try again.",
+        duration: 5000,
       });
     },
   });
@@ -414,6 +416,7 @@ export default function RightPanel({
               title: "Failed to transform image",
               description:
                 "Please ensure you've set your FAL KEY in the settings.",
+              duration: 5000,
             });
           },
         },
@@ -432,6 +435,7 @@ export default function RightPanel({
         toast({
           title: "Failed to generate media",
           description: "Please ensure you've set your FAL KEY in the settings.",
+          duration: 5000,
         });
       },
     });
@@ -479,6 +483,7 @@ export default function RightPanel({
       toast({
         title: "Failed to upload file",
         description: "Please try again",
+        duration: 5000,
       });
     }
   };
@@ -1196,31 +1201,40 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [firstImage, setFirstImage] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
-  const [selectedModel, setSelectedModel] = useState("fal-ai/luma-dream-machine");
-  const [selectedImageModel, setSelectedImageModel] = useState("fal-ai/stable-diffusion-v35-large");
+  const [selectedModel, setSelectedModel] = useState(
+    "fal-ai/luma-dream-machine",
+  );
+  const [selectedImageModel, setSelectedImageModel] = useState(
+    "fal-ai/stable-diffusion-v35-large",
+  );
   const [videoPrompt, setVideoPrompt] = useState("");
-  
+
   // New state for video generation
   const [imagesToUse, setImagesToUse] = useState<boolean[]>([]);
   const [generatedVideos, setGeneratedVideos] = useState<string[]>([]);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isGeneratingVideos, setIsGeneratingVideos] = useState(false);
 
+  // In the StoryGenerator component, add a new state for API errors
+  const [apiError, setApiError] = useState<string | null>(null);
+
   // Get all available image models from the fal.ts AVAILABLE_ENDPOINTS
-  const imageModels = useMemo(() => 
-    AVAILABLE_ENDPOINTS
-      .filter(endpoint => endpoint.category === "image")
-      .map(endpoint => ({
+  const imageModels = useMemo(
+    () =>
+      AVAILABLE_ENDPOINTS.filter(
+        (endpoint) => endpoint.category === "image",
+      ).map((endpoint) => ({
         id: endpoint.endpointId,
-        name: endpoint.label
-      }))
-  , []);
+        name: endpoint.label,
+      })),
+    [],
+  );
 
   // If we want to set a default model (Stable Diffusion 3.5 Large)
   useEffect(() => {
     // Set default to SD 3.5 Large if it exists
-    const defaultModel = imageModels.find(model => 
-      model.id === "fal-ai/stable-diffusion-v35-large"
+    const defaultModel = imageModels.find(
+      (model) => model.id === "fal-ai/stable-diffusion-v35-large",
     );
     if (defaultModel) {
       setSelectedImageModel(defaultModel.id);
@@ -1269,12 +1283,17 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
     try {
       console.log("Generating cleaned idea with prompt:", baseIdea);
       
+      // Log the endpoint being used
+      console.log("Using endpoint: fal-ai/any-llm");
+      
+      setApiError(null); // Clear any existing error
+      
       // Use fal client the proper way
       const response = await fal.subscribe("fal-ai/any-llm", {
         input: {
           model: "google/gemini-flash-1.5",
-          prompt: `Take this rough idea for a short video and refine it into a clear, concise concept description that could be used for video creation. Make it around 2-3 sentences maximum, focusing on the key visuals and emotional elements: "${baseIdea}"`
-        }
+          prompt: `Take this rough idea for a short video and refine it into a clear, concise concept description that could be used for video creation. Make it around 2-3 sentences maximum, focusing on the key visuals and emotional elements: "${baseIdea}"`,
+        },
       });
       
       console.log("Response from fal-ai/any-llm:", response);
@@ -1284,18 +1303,24 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
       const data = response.data || response;
       // @ts-ignore
       const output = data.output || data;
-      // @ts-ignore
-      let finalOutput = typeof output === 'string' ? output : output.output || output.text || JSON.stringify(output);
+      // @ts-ignore - ignore type error for the output.text property
+      let finalOutput =
+        typeof output === "string"
+          ? output
+          : output.output || output.text || JSON.stringify(output);
       
       // Basic cleanup - remove any markdown formatting
-      finalOutput = finalOutput.replace(/\*\*/g, '').replace(/Option \d+.*?:/g, '').trim();
+      finalOutput = finalOutput
+        .replace(/\*\*/g, "")
+        .replace(/Option \d+.*?:/g, "")
+        .trim();
       
       // If the output includes blockquotes, extract only the quoted text from the first one
-      if (finalOutput.includes('>')) {
-        const lines = finalOutput.split('\n');
+      if (finalOutput.includes(">")) {
+        const lines = finalOutput.split("\n");
         for (const line of lines) {
-          if (line.includes('>')) {
-            const quote = line.split('>')[1];
+          if (line.includes(">")) {
+            const quote = line.split(">")[1];
             if (quote) {
               finalOutput = quote.trim();
               break;
@@ -1308,11 +1333,23 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
         throw new Error("No valid output received from API");
       }
       
+      console.log("Cleaned idea result:", finalOutput);
       setCleanedIdea(finalOutput);
       setStoryGenerated(true);
       setLoading(false);
     } catch (error) {
       console.error("Error generating cleaned idea:", error);
+      
+      // Set user-friendly error message
+      setApiError(
+        `Failed to generate story: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+      
+      toast({
+        title: "Story Generation Failed",
+        description: "There was a problem generating the story. Please try again.",
+        duration: 5000,
+      });
       setLoading(false);
     }
   };
@@ -1322,6 +1359,7 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
     
     try {
       console.log("Generating story with concept:", cleanedIdea);
+      console.log("Using endpoint: fal-ai/any-llm");
       
       // Use fal client the proper way
       const response = await fal.subscribe("fal-ai/any-llm", {
@@ -1329,8 +1367,8 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
           model: "google/gemini-flash-1.5",
           prompt: `Create a storyboard for a short video based on this concept: "${cleanedIdea}". 
                   Provide 5-10 key scenes that would work well for a 30-second to 5-minute video. 
-                  For each scene, provide a detailed description that could be used for image generation. Format each scene as Scene 1: [description], Scene 2: [description], etc.`
-        }
+                  For each scene, provide a detailed description that could be used for image generation. Format each scene as Scene 1: [description], Scene 2: [description], etc.`,
+        },
       });
       
       console.log("Story response from fal-ai/any-llm:", response);
@@ -1340,23 +1378,35 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
       const data = response.data || response;
       // @ts-ignore
       const output = data.output || data;
-      // @ts-ignore
-      let storyText = typeof output === 'string' ? output : output.output || output.text || JSON.stringify(output);
+      // @ts-ignore - ignore type error for the output.text property
+      let storyText =
+        typeof output === "string"
+          ? output
+          : output.output || output.text || JSON.stringify(output);
       
       if (!storyText) {
         throw new Error("No valid output received from API");
       }
+      
+      console.log("Parsed story text:", storyText);
       
       const scenes = storyText
         .split(/Scene \d+:|Step \d+:/)
         .filter(Boolean)
         .map((scene: string) => scene.trim());
       
+      console.log("Extracted scenes:", scenes);
+      
       setStorySteps(scenes);
       setStoryApproved(true);
       setLoading(false);
     } catch (error) {
       console.error("Error generating story:", error);
+      toast({
+        title: "Story Generation Failed",
+        description: "There was a problem generating the storyboard. Please try again.",
+        duration: 5000,
+      });
       setLoading(false);
     }
   };
@@ -1368,58 +1418,69 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
     try {
       console.log("Generating first image with prompt:", storySteps[0]);
       console.log("Using image model:", selectedImageModel);
-      
+
       // Use selected image model
-      const response = await fal.subscribe(
-        selectedImageModel,
-        {
-          input: {
-            prompt: storySteps[0],
-            negative_prompt: "poor quality, blurry, distorted, unrealistic",
-            // @ts-ignore - the fal API types are incorrect
-            width: 768,
-            // @ts-ignore - the fal API types are incorrect
-            height: 768,
-          },
+      const response = await fal.subscribe(selectedImageModel, {
+        input: {
+          prompt: storySteps[0],
+          negative_prompt: "poor quality, blurry, distorted, unrealistic",
+          // @ts-ignore - the fal API types are incorrect
+          width: 768,
+          // @ts-ignore - the fal API types are incorrect
+          height: 768,
         },
-      );
-      
+      });
+
       console.log("First image response:", response);
 
       // Handle multiple possible response formats
       // @ts-ignore
       let imageUrl = null;
-      
+
       try {
         // Check data.images path first (common format)
         // @ts-ignore
-        if (response.data && response.data.images && response.data.images[0] && response.data.images[0].url) {
+        if (
+          response.data &&
+          response.data.images &&
+          response.data.images[0] &&
+          response.data.images[0].url
+        ) {
           // @ts-ignore
           imageUrl = response.data.images[0].url;
-        } 
+        }
         // Check response.images path
         // @ts-ignore
-        else if (response.images && response.images[0] && response.images[0].url) {
+        else if (
+          response.images &&
+          response.images[0] &&
+          response.images[0].url
+        ) {
           // @ts-ignore
           imageUrl = response.images[0].url;
         }
         // Check for output.images path
         // @ts-ignore
-        else if (response.output && response.output.images && response.output.images[0] && response.output.images[0].url) {
+        else if (
+          response.output &&
+          response.output.images &&
+          response.output.images[0] &&
+          response.output.images[0].url
+        ) {
           // @ts-ignore
           imageUrl = response.output.images[0].url;
         }
-        
+
         console.log("Extracted image URL:", imageUrl);
       } catch (err) {
         console.error("Error parsing response:", err);
         console.log("Full response:", JSON.stringify(response));
       }
-      
+
       if (!imageUrl) {
         throw new Error("No image URL returned from API");
       }
-      
+
       setFirstImage(imageUrl);
       setFirstImageGenerated(true);
       setLoading(false);
@@ -1442,16 +1503,17 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
   const generateAllImages = async () => {
     setLoading(true);
     const images: string[] = [];
+    setGeneratedImages([]);
 
     try {
       // Generate an image for each story step
-      for (const step of storySteps) {
+      for (let i = 0; i < storySteps.length; i++) {
+        const step = storySteps[i];
         console.log("Generating image for step:", step);
         console.log("Using image model:", selectedImageModel);
-        
-        const response = await fal.subscribe(
-          selectedImageModel,
-          {
+
+        try {
+          const response = await fal.subscribe(selectedImageModel, {
             input: {
               prompt: step,
               negative_prompt: "poor quality, blurry, distorted, unrealistic",
@@ -1460,60 +1522,98 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
               // @ts-ignore - the fal API types are incorrect
               height: 768,
             },
-          },
-        );
-        
-        console.log("Step image response:", response);
+          });
 
-        // Handle multiple possible response formats
-        // @ts-ignore
-        let imageUrl = null;
-        
-        try {
-          // Check data.images path first (common format)
+          console.log("Step image response:", response);
+
+          // Handle multiple possible response formats
           // @ts-ignore
-          if (response.data && response.data.images && response.data.images[0] && response.data.images[0].url) {
+          let imageUrl = null;
+
+          try {
+            // Check data.images path first (common format)
             // @ts-ignore
-            imageUrl = response.data.images[0].url;
-          } 
-          // Check response.images path
-          // @ts-ignore
-          else if (response.images && response.images[0] && response.images[0].url) {
+            if (
+              response.data &&
+              response.data.images &&
+              response.data.images[0] &&
+              response.data.images[0].url
+            ) {
+              // @ts-ignore
+              imageUrl = response.data.images[0].url;
+            }
+            // Check response.images path
             // @ts-ignore
-            imageUrl = response.images[0].url;
+            else if (
+              response.images &&
+              response.images[0] &&
+              response.images[0].url
+            ) {
+              // @ts-ignore
+              imageUrl = response.images[0].url;
+            }
+            // Check for output.images path
+            // @ts-ignore
+            else if (
+              response.output &&
+              response.output.images &&
+              response.output.images[0] &&
+              response.output.images[0].url
+            ) {
+              // @ts-ignore
+              imageUrl = response.output.images[0].url;
+            }
+
+            console.log("Extracted image URL:", imageUrl);
+          } catch (err) {
+            console.error("Error parsing response:", err);
+            console.log("Full response:", JSON.stringify(response));
           }
-          // Check for output.images path
-          // @ts-ignore
-          else if (response.output && response.output.images && response.output.images[0] && response.output.images[0].url) {
-            // @ts-ignore
-            imageUrl = response.output.images[0].url;
+
+          if (imageUrl) {
+            // Add the image to our local array
+            images.push(imageUrl);
+            
+            // Update the state incrementally with each new image
+            setGeneratedImages([...images]);
+            
+            // Show a toast notification for each completed image
+            toast({
+              title: `Scene ${i + 1} generated`,
+              description: "Image created successfully",
+              duration: 2000,
+            });
           }
-          
-          console.log("Extracted image URL:", imageUrl);
-        } catch (err) {
-          console.error("Error parsing response:", err);
-          console.log("Full response:", JSON.stringify(response));
-        }
-        
-        if (imageUrl) {
-          images.push(imageUrl);
+        } catch (error) {
+          console.error(`Error generating image for scene ${i + 1}:`, error);
+          // Continue with other scenes even if one fails
+          toast({
+            title: `Failed to generate scene ${i + 1}`,
+            description: "Continuing with remaining scenes",
+            variant: "destructive",
+            duration: 3000,
+          });
         }
       }
 
-      if (images.length === 0) {
+      // If we have at least one image, consider the process successful
+      if (images.length > 0) {
+        setAllImagesGenerated(true);
+
+        // Prepare video prompt based on the story
+        const videoPromptText = `Create a video that tells this story: ${cleanedIdea}`;
+        setVideoPrompt(videoPromptText);
+      } else {
         throw new Error("Failed to generate any images");
       }
-
-      setGeneratedImages(images);
-      setAllImagesGenerated(true);
-
-      // Prepare video prompt based on the story
-      const videoPromptText = `Create a video that tells this story: ${cleanedIdea}`;
-      setVideoPrompt(videoPromptText);
-
-      setLoading(false);
     } catch (error) {
       console.error("Error generating all images:", error);
+      toast({
+        title: "Image Generation Failed",
+        description: "There was a problem generating the images. Please try again.",
+        duration: 5000,
+      });
+    } finally {
       setLoading(false);
     }
   };
@@ -1524,7 +1624,9 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
     setIsGeneratingVideos(true);
     
     // Filter only selected images
-    const selectedImages = generatedImages.filter((_, index) => imagesToUse[index]);
+    const selectedImages = generatedImages.filter(
+      (_, index) => imagesToUse[index],
+    );
     const selectedSteps = storySteps.filter((_, index) => imagesToUse[index]);
     
     if (selectedImages.length === 0) {
@@ -1534,6 +1636,7 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
     }
     
     const videos: string[] = [];
+    setGeneratedVideos([]);
     setCurrentVideoIndex(0);
     
     try {
@@ -1541,73 +1644,172 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
       for (let i = 0; i < selectedImages.length; i++) {
         setCurrentVideoIndex(i);
         const imageUrl = selectedImages[i];
-        const scenePrompt = selectedSteps[i] || cleanedIdea;
+        const sceneDescription = selectedSteps[i] || "";
         
-        console.log(`Generating video ${i+1}/${selectedImages.length}`);
-        console.log("Using model:", selectedModel);
-        console.log("Using image:", imageUrl);
-        console.log("Video prompt:", scenePrompt);
-        
-        const response = await fal.subscribe(selectedModel, {
-          input: {
-            prompt: scenePrompt,
-            image_url: imageUrl,
-          },
-        });
-        
-        console.log("Video generation response:", response);
-        
-        // @ts-ignore - the fal API types don't match the actual response structure
-        let videoUrl = null;
-        
-        try {
-          // Check for different possible response formats
-          // @ts-ignore
-          if (response.data) {
-            // @ts-ignore
-            videoUrl = response.data.video_url || response.data.url;
-          }
-          
-          // Check direct response
-          // @ts-ignore
-          if (!videoUrl) {
-            // @ts-ignore
-            videoUrl = response.video_url || response.url;
-          }
-          
-          // Check output path
-          // @ts-ignore
-          if (!videoUrl && response.output) {
-            // @ts-ignore
-            videoUrl = response.output.video_url || response.output.url;
-          }
-          
-          console.log("Extracted video URL:", videoUrl);
-        } catch (err) {
-          console.error("Error parsing video URL from response:", err);
-          console.log("Full response object:", JSON.stringify(response));
+        // Combine videoPrompt with scene description if both exist
+        let finalPrompt = sceneDescription;
+        if (videoPrompt && sceneDescription) {
+          finalPrompt = `${videoPrompt}. Scene description: ${sceneDescription}`;
+        } else if (videoPrompt) {
+          finalPrompt = videoPrompt;
         }
         
-        if (videoUrl) {
-          videos.push(videoUrl);
+        console.log(`Generating video ${i + 1}/${selectedImages.length}`);
+        console.log("Using model:", selectedModel);
+        console.log("Using image:", imageUrl);
+        console.log("Video prompt:", finalPrompt);
+        
+        // Create the request payload based on the model
+        let requestPayload: any = {
+          prompt: finalPrompt,
+          image_url: imageUrl,
+        };
+        
+        // Add model-specific parameters
+        if (selectedModel === "fal-ai/luma-dream-machine") {
+          // Luma uses a slightly different format
+          requestPayload = {
+            prompt: finalPrompt,
+            image_url: imageUrl,
+            steps: 25, // Optional, to ensure quality
+          };
+        } else if (selectedModel === "fal-ai/kling-video/v1.5/pro") {
+          // Kling sometimes needs explicit parameters
+          requestPayload = {
+            prompt: finalPrompt,
+            image_url: imageUrl,
+            negative_prompt: "poor quality, distortion, blurry, ugly",
+          };
+        }
+        
+        try {
+          console.log("Sending request with payload:", requestPayload);
           
-          // Save each video to the gallery as we generate it
-          await addMedia({
-            url: videoUrl,
-            type: "video",
-            name: `Scene ${i+1}: ${scenePrompt.substring(0, 30)}...`,
+          const response = await fal.subscribe(selectedModel, {
+            input: requestPayload,
           });
+          
+          console.log("Raw video generation response:", response);
+          
+          // Parse the response to extract the video URL
+          // @ts-ignore - the fal API types don't match the actual response structure
+          let videoUrl = null;
+          
+          try {
+            // For debugging purposes, log the full response structure
+            // @ts-ignore
+            console.log("Response structure:", {
+              // @ts-ignore
+              hasData: !!response.data,
+              // @ts-ignore
+              dataKeys: response.data ? Object.keys(response.data) : [],
+              // @ts-ignore
+              hasOutput: !!response.output,
+              // @ts-ignore
+              outputKeys: response.output ? Object.keys(response.output) : [],
+              // Directly check for expected URL fields
+              // @ts-ignore
+              directVideoUrl: response.video_url,
+              // @ts-ignore
+              directUrl: response.url,
+              // @ts-ignore
+              dataVideoUrl: response.data?.video_url,
+              // @ts-ignore
+              dataUrl: response.data?.url,
+              // @ts-ignore
+              outputVideoUrl: response.output?.video_url,
+              // @ts-ignore
+              outputUrl: response.output?.url,
+            });
+            
+            // Check for different possible response formats
+            // @ts-ignore
+            if (response.data) {
+              // @ts-ignore
+              videoUrl = response.data.video_url || response.data.url;
+            }
+            
+            // Check direct response
+            // @ts-ignore
+            if (!videoUrl) {
+              // @ts-ignore
+              videoUrl = response.video_url || response.url;
+            }
+            
+            // Check output path
+            // @ts-ignore
+            if (!videoUrl && response.output) {
+              // @ts-ignore
+              videoUrl = response.output.video_url || response.output.url;
+            }
+            
+            console.log("Extracted video URL:", videoUrl);
+          } catch (err) {
+            console.error("Error parsing video URL from response:", err);
+            console.log("Full response object:", JSON.stringify(response));
+          }
+          
+          if (videoUrl) {
+            videos.push(videoUrl);
+            
+            // Update the UI immediately with each new video
+            setGeneratedVideos([...videos]);
+            
+            // Save each video to the gallery as we generate it
+            await addMedia({
+              url: videoUrl,
+              type: "video",
+              name: `Scene ${i + 1}: ${sceneDescription.substring(0, 30)}...`,
+            });
+            
+            // Show a success notification for each video
+            toast({
+              title: `Video ${i + 1} generated`,
+              description: "Video has been added to your gallery",
+              duration: 3000,
+            });
+          } else {
+            console.error("Failed to extract video URL from response");
+            toast({
+              title: `Failed to generate video for scene ${i + 1}`,
+              description: "Could not extract a valid video URL from the response. Try a different model.",
+              duration: 5000,
+            });
+          }
+        } catch (error) {
+          console.error(`Error generating video for scene ${i + 1}:`, error);
+          toast({
+            title: `Failed to generate video for scene ${i + 1}`,
+            description: "An error occurred during video generation. Try a different model.",
+            variant: "destructive",
+            duration: 5000,
+          });
+          // Continue with next video despite error
         }
       }
       
-      setGeneratedVideos(videos);
-      setVideoGenerated(videos.length > 0);
-      setLoading(false);
-      setIsGeneratingVideos(false);
+      // Set video generation as complete if we have at least one video
+      if (videos.length > 0) {
+        setVideoGenerated(true);
+      }
+      
     } catch (error) {
       console.error("Error generating videos:", error);
+      toast({
+        title: "Error Generating Videos",
+        description: "There was a problem generating the videos. Please try again with a different model.",
+        duration: 5000,
+      });
+    } finally {
       setLoading(false);
       setIsGeneratingVideos(false);
+      
+      if (videos.length > 0) {
+        toast({
+          title: "Videos Generated",
+          description: `Successfully generated ${videos.length} videos from your story. They've been added to your gallery.`,
+        });
+      }
     }
   };
 
@@ -1618,7 +1820,56 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
     }
   }, [allImagesGenerated, generatedImages]);
 
+  // Add a useEffect to update the videoPrompt when scenes are generated
+  useEffect(() => {
+    if (allImagesGenerated && generatedImages.length > 0) {
+      // Create a default video prompt that includes the story concept
+      setVideoPrompt(`Create a video based on this story: ${cleanedIdea}`);
+    }
+  }, [allImagesGenerated, generatedImages, cleanedIdea]);
+
   const renderStep = () => {
+    if (apiError) {
+      return (
+        <div className="space-y-4">
+          <div className="p-4 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-800 rounded-md">
+            <h3 className="text-red-800 dark:text-red-400 font-semibold mb-2">API Error</h3>
+            <p className="text-sm text-red-700 dark:text-red-300 mb-2">{apiError}</p>
+            <Button 
+              variant="destructive" 
+              className="w-full"
+              onClick={() => {
+                setApiError(null);
+                setLoading(false);
+              }}
+            >
+              Dismiss Error
+            </Button>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Enter your base idea for a video</Label>
+            <Textarea
+              placeholder="Enter your base idea here..."
+              value={baseIdea}
+              onChange={(e) => setBaseIdea(e.target.value)}
+              className="min-h-32"
+            />
+          </div>
+          <Button
+            className="w-full"
+            onClick={generateCleanIdea}
+            disabled={!baseIdea.trim() || loading}
+          >
+            {loading ? (
+              <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+            ) : null}
+            Generate Story
+          </Button>
+        </div>
+      );
+    }
+
     if (!storyGenerated) {
       return (
         <div className="space-y-4">
@@ -1683,18 +1934,18 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
               ))}
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <Label>Select Image Model</Label>
-            <Select 
-              value={selectedImageModel} 
+            <Select
+              value={selectedImageModel}
               onValueChange={setSelectedImageModel}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {imageModels.map(model => (
+                {imageModels.map((model) => (
                   <SelectItem key={model.id} value={model.id}>
                     {model.name}
                   </SelectItem>
@@ -1702,7 +1953,7 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="flex justify-between">
             <Button variant="outline" onClick={() => setStoryApproved(false)}>
               Go Back
@@ -1760,25 +2011,53 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
               </div>
             )}
           </div>
-          
+
           <div className="space-y-2">
             <Label>Image Model</Label>
             <div className="p-2 rounded-md bg-muted">
-              <p className="text-sm">{imageModels.find(model => model.id === selectedImageModel)?.name || selectedImageModel}</p>
+              <p className="text-sm">
+                {imageModels.find((model) => model.id === selectedImageModel)
+                  ?.name || selectedImageModel}
+              </p>
             </div>
           </div>
-          
+
           <div className="flex justify-between">
             <Button variant="outline" onClick={() => setImageApproved(false)}>
               Go Back
             </Button>
             <Button onClick={generateAllImages} disabled={loading}>
               {loading ? (
-                <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Generate All Images
+                <>
+                  <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+                  {generatedImages.length > 0 ? 
+                    `Generating (${generatedImages.length}/${storySteps.length})` : 
+                    "Generating..."}
+                </>
+              ) : (
+                "Generate All Images"
+              )}
             </Button>
           </div>
+          
+          {/* Show images as they are generated */}
+          {generatedImages.length > 0 && (
+            <div className="mt-4 border-t border-border pt-4">
+              <Label>Images Generated So Far ({generatedImages.length}/{storySteps.length})</Label>
+              <div className="grid grid-cols-2 gap-2 mt-2 max-h-[200px] overflow-y-auto">
+                {generatedImages.map((image, idx) => (
+                  <div key={idx} className="relative">
+                    <img
+                      src={image}
+                      alt={`Scene ${idx + 1}`}
+                      className="w-full h-24 object-cover rounded-md"
+                    />
+                    <p className="text-xs text-center mt-1">Scene {idx + 1}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -1793,11 +2072,14 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
             </p>
             <div className="space-y-4 max-h-[300px] overflow-y-auto">
               {generatedImages.map((image, index) => (
-                <div key={index} className="flex items-center gap-2 p-2 border border-border rounded-md">
+                <div
+                  key={index}
+                  className="flex items-center gap-2 p-2 border border-border rounded-md"
+                >
                   <input
                     type="checkbox"
                     id={`use-image-${index}`}
-                    checked={imagesToUse[index]}
+                    checked={imagesToUse[index] ?? true}
                     onChange={(e) => {
                       const newImagesToUse = [...imagesToUse];
                       newImagesToUse[index] = e.target.checked;
@@ -1806,8 +2088,15 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
                     className="w-4 h-4"
                   />
                   <div className="flex-1">
-                    <Label htmlFor={`use-image-${index}`} className="font-semibold text-sm">Scene {index + 1}</Label>
-                    <p className="text-xs text-muted-foreground line-clamp-2">{storySteps[index]}</p>
+                    <Label
+                      htmlFor={`use-image-${index}`}
+                      className="font-semibold text-sm"
+                    >
+                      Scene {index + 1}
+                    </Label>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {storySteps[index]}
+                    </p>
                   </div>
                   <div className="relative h-16 w-16">
                     <img
@@ -1824,7 +2113,10 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
           <div className="space-y-2">
             <Label>Image Generator Used</Label>
             <div className="p-2 rounded-md bg-muted">
-              <p className="text-sm">{imageModels.find(model => model.id === selectedImageModel)?.name || selectedImageModel}</p>
+              <p className="text-sm">
+                {imageModels.find((model) => model.id === selectedImageModel)
+                  ?.name || selectedImageModel}
+              </p>
             </div>
           </div>
 
@@ -1852,6 +2144,19 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
             </Select>
           </div>
 
+          <div className="space-y-2">
+            <Label>Common Video Prompt (optional)</Label>
+            <Textarea
+              value={videoPrompt}
+              onChange={(e) => setVideoPrompt(e.target.value)}
+              placeholder="Enter a common prompt to use for all video generations..."
+              className="min-h-20"
+            />
+            <p className="text-xs text-muted-foreground">
+              This prompt will be combined with each scene description. Leave empty to use only scene descriptions.
+            </p>
+          </div>
+
           <div className="flex justify-between">
             <Button
               variant="outline"
@@ -1859,17 +2164,41 @@ function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
             >
               Go Back
             </Button>
-            <Button onClick={generateVideos} disabled={loading || imagesToUse.every(use => !use)}>
+            <Button
+              onClick={generateVideos}
+              disabled={loading || imagesToUse.every((use) => !use)}
+            >
               {loading ? (
                 <>
                   <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                  {isGeneratingVideos ? `Generating Video ${currentVideoIndex + 1}/${imagesToUse.filter(Boolean).length}` : 'Loading...'}
+                  {isGeneratingVideos
+                    ? `Generating Video ${currentVideoIndex + 1}/${imagesToUse.filter(Boolean).length}`
+                    : "Loading..."}
                 </>
               ) : (
                 "Generate Videos"
               )}
             </Button>
           </div>
+          
+          {/* Show videos as they are generated */}
+          {generatedVideos.length > 0 && (
+            <div className="mt-4 border-t border-border pt-4">
+              <Label>Generated Videos ({generatedVideos.length})</Label>
+              <div className="grid grid-cols-2 gap-2 mt-2 max-h-[300px] overflow-y-auto">
+                {generatedVideos.map((videoUrl, idx) => (
+                  <div key={idx} className="relative">
+                    <video
+                      src={videoUrl}
+                      controls
+                      className="w-full rounded-md h-24 object-cover"
+                    />
+                    <p className="text-xs text-center mt-1">Scene {idx + 1}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
