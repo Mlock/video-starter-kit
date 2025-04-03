@@ -2,7 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ImageIcon, MicIcon, MusicIcon, TypeIcon, VideoIcon } from "lucide-react";
+import {
+  ImageIcon,
+  MicIcon,
+  MusicIcon,
+  TypeIcon,
+  VideoIcon,
+} from "lucide-react";
 import type { MediaType } from "@/data/store";
 
 type MediaTypePickerProps = {
@@ -10,7 +16,10 @@ type MediaTypePickerProps = {
   onMediaTypeChange: (type: string) => void;
 };
 
-export function MediaTypePicker({ mediaType, onMediaTypeChange }: MediaTypePickerProps) {
+export function MediaTypePicker({
+  mediaType,
+  onMediaTypeChange,
+}: MediaTypePickerProps) {
   return (
     <div className="flex w-full gap-2">
       <Button

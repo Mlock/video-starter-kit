@@ -145,6 +145,14 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     inputAsset: ["image"],
   },
   {
+    endpointId: "fal-ai/luma-dream-machine/ray-2-flash/image-to-video",
+    label: "Luma Ray 2 Flash image to video",
+    description: "Ray2 Flash is a fast video generative model capable of creating realistic visuals with natural, coherent motion.",
+    cost: "",
+    category: "video",
+    inputAsset: ["image"],
+  },
+  {
     endpointId: "fal-ai/minimax-music",
     label: "Minimax Music",
     description:
@@ -239,12 +247,22 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
     category: "video",
   },
   {
+    endpointId: "fal-ai/veo2/image-to-video",
+    label: "Veo 2 Image-to-Video",
+    description:
+      "Veo creates high quality videos from images with realistic motion, supporting up to 4K.",
+    cost: "",
+    category: "video",
+    inputAsset: ["image"],
+  },
+  {
     endpointId: "fal-ai/ltx-video-v095/multiconditioning",
     label: "LTX Video v0.95 Multiconditioning",
     description: "Generate videos from prompts,images using LTX Video-0.9.5",
     cost: "",
     imageForFrame: true,
     category: "video",
+    inputAsset: ["image"],
   },
   {
     endpointId: "fal-ai/topaz/upscale/video",

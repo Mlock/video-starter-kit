@@ -265,7 +265,7 @@ export default function RightPanel({
           remove_silence: true,
         }
       : {};
-      
+
   const createJob = useJobCreator({
     projectId,
     endpointId:
@@ -519,9 +519,9 @@ export default function RightPanel({
           <>
             <div className="w-full flex flex-col">
               <div className="flex w-full gap-2">
-                <MediaTypePicker 
-                  mediaType={mediaType} 
-                  onMediaTypeChange={handleMediaTypeChange} 
+                <MediaTypePicker
+                  mediaType={mediaType}
+                  onMediaTypeChange={handleMediaTypeChange}
                 />
               </div>
               <div className="flex flex-col gap-2 mt-2 justify-start font-medium text-base">
@@ -631,7 +631,10 @@ export default function RightPanel({
                                 </button>
                               </WithTooltip>
                               {generateData[getAssetKey(asset)] && (
-                                <AssetPreview asset={asset} data={generateData} />
+                                <AssetPreview
+                                  asset={asset}
+                                  data={generateData}
+                                />
                               )}
                             </div>
                           )}

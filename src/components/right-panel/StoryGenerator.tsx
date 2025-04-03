@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -22,7 +22,9 @@ import type { MediaItem } from "@/data/schema";
 import { Slider } from "@/components/ui/slider";
 import { queryKeys } from "@/data/queries";
 
-export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Element {
+export function StoryGenerator({
+  onClose,
+}: { onClose: () => void }): JSX.Element {
   const [baseIdea, setBaseIdea] = useState("");
   const [cleanedIdea, setCleanedIdea] = useState("");
   const [storyGenerated, setStoryGenerated] = useState(false);
@@ -37,12 +39,13 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
   const [firstImage, setFirstImage] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [selectedModel, setSelectedModel] = useState(
-    "fal-ai/luma-dream-machine",
+    "fal-ai/veo2/image-to-video",
   );
   const [selectedImageModel, setSelectedImageModel] = useState(
     "fal-ai/stable-diffusion-v35-large",
   );
   const [videoPrompt, setVideoPrompt] = useState("");
+  const [styleDescription, setStyleDescription] = useState("photorealistic, high detail, cohesive style, consistent lighting");
 
   // State for video generation
   const [imagesToUse, setImagesToUse] = useState<boolean[]>([]);
@@ -50,6 +53,9 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isGeneratingVideos, setIsGeneratingVideos] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // Add duration state for Veo2
+  const [videoDuration, setVideoDuration] = useState("5s");
 
   // Get all available image models
   const imageModels = useMemo(
@@ -198,7 +204,11 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
           model: "google/gemini-flash-1.5",
           prompt: `Create a storyboard for a short video based on this concept: "${cleanedIdea}". 
                   Provide 5-10 key scenes that would work well for a 30-second to 5-minute video. 
-                  For each scene, provide a detailed description that could be used for image generation. Format each scene as Scene 1: [description], Scene 2: [description], etc.`,
+                  For each scene, provide a detailed description that could be used for image generation.
+                  IMPORTANT: Format each scene description EXACTLY as:
+                  Scene 1: [description]
+                  Scene 2: [description]
+                  etc.`,
         },
       });
 
@@ -221,14 +231,39 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
 
       console.log("Parsed story text:", storyText);
 
-      const scenes = storyText
-        .split(/Scene \d+:|Step \d+:/)
-        .filter(Boolean)
-        .map((scene: string) => scene.trim());
+      // Improved regex pattern to extract scene descriptions
+      // This pattern looks for "Scene X:" or "Scene X." or "X." or "X:" followed by text
+      const scenesRegex = /(?:Scene\s*(\d+)[:.]\s*|\b(\d+)[:.]\s*)([^\n]+(?:\n(?!Scene\s*\d|^\d)[^\n]+)*)/g;
+      let match;
+      const scenes: string[] = [];
+      const sceneMatches: {number: number, text: string}[] = [];
+      
+      // Extract all scenes with their numbers
+      while ((match = scenesRegex.exec(storyText)) !== null) {
+        const sceneNumber = parseInt(match[1] || match[2], 10);
+        const sceneText = match[3].trim();
+        sceneMatches.push({number: sceneNumber, text: sceneText});
+      }
+      
+      // Sort by scene number and extract just the descriptions
+      sceneMatches.sort((a, b) => a.number - b.number);
+      const orderedScenes = sceneMatches.map(scene => scene.text);
+      
+      // If we didn't find any scenes with the regex, fall back to the old method
+      if (orderedScenes.length === 0) {
+        console.log("Falling back to basic scene splitting");
+        const basicScenes = storyText
+          .split(/Scene \d+:|Step \d+:/)
+          .filter(Boolean)
+          .map((scene: string) => scene.trim());
+        
+        console.log("Extracted scenes (basic method):", basicScenes);
+        setStorySteps(basicScenes);
+      } else {
+        console.log("Extracted scenes (structured method):", orderedScenes);
+        setStorySteps(orderedScenes);
+      }
 
-      console.log("Extracted scenes:", scenes);
-
-      setStorySteps(scenes);
       setStoryApproved(true);
       setLoading(false);
     } catch (error) {
@@ -248,14 +283,19 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
     setLoading(true);
 
     try {
-      console.log("Generating first image with prompt:", storySteps[0]);
+      // Use the first scene/step for the first image, not the storyboard title
+      const firstSceneIndex = 0;
+      const firstScene = storySteps[firstSceneIndex];
+      
+      console.log("Generating first image with prompt:", firstScene);
       console.log("Using image model:", selectedImageModel);
+      console.log("Style description:", styleDescription);
 
       // Use selected image model
       const response = await fal.subscribe(selectedImageModel, {
         input: {
-          prompt: storySteps[0],
-          negative_prompt: "poor quality, blurry, distorted, unrealistic",
+          prompt: `${firstScene}, ${styleDescription}`,
+          negative_prompt: "poor quality, blurry, distorted, unrealistic, inconsistent style, inconsistent lighting",
           // @ts-ignore - the fal API types are incorrect
           width: 768,
           // @ts-ignore - the fal API types are incorrect
@@ -330,6 +370,60 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
 
   const approveImage = () => {
     setImageApproved(true);
+    // Enhance story steps with style
+    enhanceStoryStepsWithStyle();
+  };
+
+  const enhanceStoryStepsWithStyle = async () => {
+    if (storySteps.length === 0 || !styleDescription) return;
+    
+    try {
+      // Extract style elements from the first successful image
+      const stylePrompt = `Based on the visual style described as "${styleDescription}", 
+                          enhance each of the following scene descriptions to maintain this consistent style.
+                          Keep the original scene content but add style-specific details.
+                          Original scenes:
+                          ${storySteps.join("\n")}`;
+      
+      const response = await fal.subscribe("fal-ai/any-llm", {
+        input: {
+          model: "google/gemini-flash-1.5",
+          prompt: stylePrompt,
+        },
+      });
+
+      // @ts-ignore - the fal API types don't match the actual response structure
+      const data = response.data || response;
+      // @ts-ignore
+      const output = data.output || data;
+      // @ts-ignore - ignore type error for the output.text property
+      let enhancedScenes =
+        typeof output === "string"
+          ? output
+          : output.output || output.text || JSON.stringify(output);
+      
+      if (enhancedScenes) {
+        // Parse the scene descriptions - looking for patterns like "Scene 1:", "1.", etc.
+        const scenes = enhancedScenes
+          .split(/Scene \d+:|Step \d+:|^\d+\.|^\d+:/)
+          .filter(Boolean)
+          .map((scene: string) => scene.trim());
+        
+        if (scenes.length >= storySteps.length) {
+          // Only update if we got enough scenes back
+          setStorySteps(scenes.slice(0, storySteps.length));
+          
+          toast({
+            title: "Style Applied",
+            description: "Scene descriptions have been enhanced for style consistency",
+            duration: 3000,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error enhancing story steps with style:", error);
+      // Continue without enhanced descriptions if this fails
+    }
   };
 
   const generateAllImages = async () => {
@@ -341,14 +435,15 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
       // Generate an image for each story step
       for (let i = 0; i < storySteps.length; i++) {
         const step = storySteps[i];
-        console.log("Generating image for step:", step);
+        console.log(`Generating image for scene ${i + 1}:`, step);
         console.log("Using image model:", selectedImageModel);
+        console.log("Style description:", styleDescription);
 
         try {
           const response = await fal.subscribe(selectedImageModel, {
             input: {
-              prompt: step,
-              negative_prompt: "poor quality, blurry, distorted, unrealistic",
+              prompt: `${step}, ${styleDescription}`,
+              negative_prompt: "poor quality, blurry, distorted, unrealistic, inconsistent style, inconsistent lighting",
               // @ts-ignore - the fal API types are incorrect
               width: 768,
               // @ts-ignore - the fal API types are incorrect
@@ -456,6 +551,15 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
     setLoading(true);
     setIsGeneratingVideos(true);
 
+    // Add more detailed logging for debugging
+    console.log("Starting video generation with model:", selectedModel);
+    
+    // Ensure we're using the correct Veo2 endpoint
+    if (selectedModel === "fal-ai/veo2") {
+      console.log("Correcting model from fal-ai/veo2 to fal-ai/veo2/image-to-video");
+      setSelectedModel("fal-ai/veo2/image-to-video");
+    }
+
     // Filter only selected images
     const selectedImages = generatedImages.filter(
       (_, index) => imagesToUse[index],
@@ -506,11 +610,12 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
             image_url: imageUrl,
             steps: 25, // Optional, to ensure quality
           };
-          
+
           // Show a notification that Luma takes longer to process
           toast({
             title: `Luma Dream Machine Notice`,
-            description: "This model may take up to 2 minutes to generate a video. Please be patient as we poll for results.",
+            description:
+              "This model may take up to 2 minutes to generate a video. Please be patient as we poll for results.",
             duration: 8000,
           });
         } else if (selectedModel === "fal-ai/kling-video/v1.5/pro") {
@@ -520,6 +625,36 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
             image_url: imageUrl,
             negative_prompt: "poor quality, distortion, blurry, ugly",
           };
+        } else if (selectedModel === "fal-ai/veo2/image-to-video") {
+          // Veo2 image-to-video format
+          requestPayload = {
+            prompt: finalPrompt,
+            image_url: imageUrl,
+            aspect_ratio: "auto",
+            duration: videoDuration
+          };
+        } else if (selectedModel === "fal-ai/ltx-video-v095/multiconditioning") {
+          // LTX Video requires specific parameters
+          requestPayload = {
+            prompt: finalPrompt,
+            image_url: imageUrl,
+            num_frames: 16, // Default value
+            num_inference_steps: 30,
+            guidance_scale: 7.5,
+            fps: 8,
+          };
+        } else if (selectedModel === "fal-ai/minimax/video-01-live") {
+          // Minimax Video parameters
+          requestPayload = {
+            prompt: finalPrompt,
+            image_url: imageUrl,
+            negative_prompt: "low quality, blurry, distorted, unrealistic motion",
+          };
+        }
+
+        // Make sure all models have image_url parameter
+        if (!requestPayload.image_url) {
+          requestPayload.image_url = imageUrl;
         }
 
         try {
@@ -564,66 +699,122 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
               // @ts-ignore
               responseData: response.data,
             });
-            
+
+            // Special handling for Veo2 image-to-video which has a different response format
+            if (selectedModel === "fal-ai/veo2/image-to-video" && response.data) {
+              try {
+                // @ts-ignore
+                if (response.data.video && response.data.video.url) {
+                  // @ts-ignore
+                  videoUrl = response.data.video.url;
+                  console.log("Found Veo2 video URL from data.video.url:", videoUrl);
+                }
+              } catch (err) {
+                console.error("Error extracting Veo2 video URL:", err);
+              }
+            }
+            // Special handling for LTX Video which has a different response format
+            else if (selectedModel === "fal-ai/ltx-video-v095/multiconditioning" && response.data) {
+              try {
+                // @ts-ignore
+                if (response.data.video_out && response.data.video_out.url) {
+                  // @ts-ignore
+                  videoUrl = response.data.video_out.url;
+                  console.log("Found LTX video URL from data.video_out.url:", videoUrl);
+                } else if (response.data.video_url) {
+                  // @ts-ignore
+                  videoUrl = response.data.video_url;
+                  console.log("Found LTX video URL from data.video_url:", videoUrl);
+                }
+              } catch (err) {
+                console.error("Error extracting LTX video URL:", err);
+              }
+            }
+            // Special handling for Minimax Video which sometimes has a different response format
+            else if (selectedModel === "fal-ai/minimax/video-01-live" && response.data) {
+              try {
+                // @ts-ignore
+                if (response.data.video_url) {
+                  // @ts-ignore
+                  videoUrl = response.data.video_url;
+                  console.log("Found Minimax video URL from data.video_url:", videoUrl);
+                }
+              } catch (err) {
+                console.error("Error extracting Minimax video URL:", err);
+              }
+            }
             // Special handling for Luma Dream Machine which has a different response format
-            if (selectedModel === "fal-ai/luma-dream-machine" && response.data) {
+            else if (
+              selectedModel === "fal-ai/luma-dream-machine" &&
+              response.data
+            ) {
               try {
                 // For Luma, check if there's a requestId we can use
                 // @ts-ignore
                 const requestId = response.requestId || response.data.requestId;
                 console.log("Luma request ID:", requestId);
-                
+
                 if (!requestId) {
                   console.error("No requestId found in Luma response");
                   throw new Error("No requestId found in Luma response");
                 }
-                
+
                 // Luma model needs to poll the result with the requestId
                 const pollingUrl = `/api/fal?id=${requestId}`;
                 console.log("Polling for video using URL:", pollingUrl);
-                
+
                 // Poll for up to 2 minutes (24 attempts, 5 second interval)
                 for (let attempt = 0; attempt < 24; attempt++) {
                   console.log(`Polling attempt ${attempt + 1}/24`);
-                  
+
                   // Update the UI to show polling progress
-                  if (attempt % 3 === 0) { // Update every 3 attempts (15 seconds)
+                  if (attempt % 3 === 0) {
+                    // Update every 3 attempts (15 seconds)
                     toast({
                       title: `Processing video ${i + 1}`,
-                      description: `Still working... (${Math.round((attempt + 1) / 24 * 100)}% complete)`,
+                      description: `Still working... (${Math.round(((attempt + 1) / 24) * 100)}% complete)`,
                       duration: 4000,
                     });
                   }
-                  
+
                   // Wait 5 seconds between attempts
-                  await new Promise(resolve => setTimeout(resolve, 5000));
-                  
+                  await new Promise((resolve) => setTimeout(resolve, 5000));
+
                   try {
                     // Poll for the result
                     const pollResponse = await fetch(pollingUrl);
                     const pollResult = await pollResponse.json();
-                    
+
                     console.log("Poll result:", pollResult);
-                    
+
                     // Check if we have a valid result
-                    if (pollResult.video_url || 
-                        (pollResult.data && pollResult.data.video_url) || 
-                        (pollResult.output && pollResult.output.video_url) ||
-                        (pollResult.video && pollResult.video.url)) {
-                      
-                      videoUrl = pollResult.video_url || 
-                                pollResult.data?.video_url || 
-                                pollResult.output?.video_url ||
-                                pollResult.video?.url;
-                                
+                    if (
+                      pollResult.video_url ||
+                      (pollResult.data && pollResult.data.video_url) ||
+                      (pollResult.output && pollResult.output.video_url) ||
+                      (pollResult.video && pollResult.video.url)
+                    ) {
+                      videoUrl =
+                        pollResult.video_url ||
+                        pollResult.data?.video_url ||
+                        pollResult.output?.video_url ||
+                        pollResult.video?.url;
+
                       console.log("Found video URL after polling:", videoUrl);
                       break;
                     }
 
                     // Also check directly inside the response data for Luma's format
-                    if (pollResult.data && pollResult.data.video && pollResult.data.video.url) {
+                    if (
+                      pollResult.data &&
+                      pollResult.data.video &&
+                      pollResult.data.video.url
+                    ) {
                       videoUrl = pollResult.data.video.url;
-                      console.log("Found Luma video URL in data.video.url:", videoUrl);
+                      console.log(
+                        "Found Luma video URL in data.video.url:",
+                        videoUrl,
+                      );
                       break;
                     }
                   } catch (err) {
@@ -640,14 +831,14 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
                 // @ts-ignore
                 videoUrl = response.data.video_url || response.data.url;
               }
-              
+
               // Check direct response
               // @ts-ignore
               if (!videoUrl) {
                 // @ts-ignore
                 videoUrl = response.video_url || response.url;
               }
-              
+
               // Check output path
               // @ts-ignore
               if (!videoUrl && response.output) {
@@ -655,7 +846,7 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
                 videoUrl = response.output.video_url || response.output.url;
               }
             }
-            
+
             console.log("Extracted video URL:", videoUrl);
           } catch (err) {
             console.error("Error parsing video URL from response:", err);
@@ -872,6 +1063,19 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
               </SelectContent>
             </Select>
           </div>
+          
+          <div className="space-y-2">
+            <Label>Style Description</Label>
+            <Textarea
+              value={styleDescription}
+              onChange={(e) => setStyleDescription(e.target.value)}
+              placeholder="Enter style parameters to keep consistent..."
+              className="min-h-20"
+            />
+            <p className="text-xs text-muted-foreground">
+              This style will be applied to all generated images for consistency (e.g., "cinematic, photorealistic, vibrant colors")
+            </p>
+          </div>
 
           <div className="flex justify-between">
             <Button variant="outline" onClick={() => setStoryApproved(false)}>
@@ -939,6 +1143,19 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
                   ?.name || selectedImageModel}
               </p>
             </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Style Description</Label>
+            <Textarea
+              value={styleDescription}
+              onChange={(e) => setStyleDescription(e.target.value)}
+              placeholder="Enter style parameters to keep consistent..."
+              className="min-h-20"
+            />
+            <p className="text-xs text-muted-foreground">
+              This style will be applied to all generated images for consistency
+            </p>
           </div>
 
           <div className="flex justify-between">
@@ -1050,21 +1267,44 @@ export function StoryGenerator({ onClose }: { onClose: () => void }): JSX.Elemen
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="fal-ai/luma-dream-machine">
-                  Luma Dream Machine
+                  Luma Dream Machine (Image-to-Video)
                 </SelectItem>
                 <SelectItem value="fal-ai/minimax/video-01-live">
-                  Minimax Video
+                  Minimax Video (Image-to-Video)
                 </SelectItem>
                 <SelectItem value="fal-ai/kling-video/v1.5/pro">
-                  Kling 1.5 Pro
+                  Kling 1.5 Pro (Image-to-Video)
                 </SelectItem>
-                <SelectItem value="fal-ai/veo2">Veo 2</SelectItem>
+                <SelectItem value="fal-ai/veo2/image-to-video">
+                  Veo 2 Image-to-Video
+                </SelectItem>
                 <SelectItem value="fal-ai/ltx-video-v095/multiconditioning">
-                  LTX Video
+                  LTX Video (Image-to-Video)
                 </SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              All models will use your generated images as reference for creating videos
+            </p>
           </div>
+
+          {/* Show duration options when Veo2 is selected */}
+          {selectedModel === "fal-ai/veo2/image-to-video" && (
+            <div className="space-y-2">
+              <Label>Video Duration</Label>
+              <Select value={videoDuration} onValueChange={setVideoDuration}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="3s">3 seconds</SelectItem>
+                  <SelectItem value="5s">5 seconds</SelectItem>
+                  <SelectItem value="8s">8 seconds</SelectItem>
+                  <SelectItem value="10s">10 seconds</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>Common Video Prompt (optional)</Label>
