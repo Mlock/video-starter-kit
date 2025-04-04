@@ -86,11 +86,44 @@ export function resolveDuration(item: MediaItem): number | null {
 export function resolveMediaUrl(item: MediaItem | undefined): string | null {
   if (!item) return null;
 
+  // Direct URL case - for StoryGenerator and uploaded files
+  if (item.url) {
+    console.log("Using direct URL from item:", item.url);
+    return item.url;
+  }
+
   if (item.kind === "uploaded") {
     return item.url;
   }
+  
+  // Check metadata for FAL special cases
+  if (item.metadata && 'originalUrl' in item.metadata) {
+    console.log("Using originalUrl from metadata:", item.metadata.originalUrl);
+    return item.metadata.originalUrl as string;
+  }
+  
+  // Check metadata for video special cases
+  if (item.mediaType === 'video' && item.metadata && 'video' in item.metadata && 
+      typeof item.metadata.video === 'object' && item.metadata.video && 'url' in item.metadata.video) {
+    console.log("Using video.url from metadata:", (item.metadata.video as any).url);
+    return (item.metadata.video as any).url;
+  }
+  
   const data = item.output;
   if (!data) return null;
+  
+  // Handle direct video_url property
+  if ('video_url' in data && typeof data.video_url === 'string') {
+    console.log("Using video_url from output data:", data.video_url);
+    return data.video_url;
+  }
+  
+  // Handle direct video property with url
+  if ('video' in data && typeof data.video === 'object' && data.video && 'url' in data.video) {
+    console.log("Using video.url from output data:", (data.video as any).url);
+    return (data.video as any).url; 
+  }
+  
   if (
     "images" in data &&
     Array.isArray(data.images) &&
@@ -98,6 +131,7 @@ export function resolveMediaUrl(item: MediaItem | undefined): string | null {
   ) {
     return data.images[0].url;
   }
+  
   const fileProperties = {
     image: 1,
     video: 1,
