@@ -97,18 +97,19 @@ export function StoryGenerator({
     try {
       // Log the exact video URL we're trying to save
       console.log("Adding media to gallery - EXACT URL:", mediaData.url);
-      
+
       // Ensure URL is properly formed (add validation)
-      if (!mediaData.url || !mediaData.url.startsWith('http')) {
+      if (!mediaData.url || !mediaData.url.startsWith("http")) {
         console.error("Invalid video URL detected:", mediaData.url);
         toast({
           title: "Invalid Video URL",
-          description: "The video URL appears to be invalid. Check console for details.",
+          description:
+            "The video URL appears to be invalid. Check console for details.",
           duration: 5000,
         });
         return null;
       }
-      
+
       const mediaItem: Omit<MediaItem, "id"> = {
         projectId,
         kind: "generated",
@@ -128,31 +129,43 @@ export function StoryGenerator({
       };
 
       // Log the exact item we're saving
-      console.log("Saving media item to database:", JSON.stringify(mediaItem, null, 2));
+      console.log(
+        "Saving media item to database:",
+        JSON.stringify(mediaItem, null, 2),
+      );
 
       const mediaId = await db.media.create(mediaItem);
       console.log("Created media with ID:", mediaId);
-      
+
       // Fetch the media to confirm it was created with the correct URL
       const media = await db.media.find(mediaId as string);
-      console.log("Retrieved media from database:", JSON.stringify(media, null, 2));
-      
+      console.log(
+        "Retrieved media from database:",
+        JSON.stringify(media, null, 2),
+      );
+
       // Validate the saved URL matches what we intended to save
       if (media && media.url !== mediaData.url) {
-        console.error("URL mismatch! Original:", mediaData.url, "Saved:", media.url);
+        console.error(
+          "URL mismatch! Original:",
+          mediaData.url,
+          "Saved:",
+          media.url,
+        );
       }
-      
+
       // Invalidate queries to refresh the gallery
       queryClient.invalidateQueries({
         queryKey: queryKeys.projectMediaItems(projectId),
       });
-      
+
       return media;
     } catch (error) {
       console.error("Error adding media to gallery:", error);
       toast({
         title: "Failed to add video to gallery",
-        description: "There was an error saving the video. It may not appear in your gallery.",
+        description:
+          "There was an error saving the video. It may not appear in your gallery.",
         duration: 5000,
       });
       return null;
@@ -941,20 +954,25 @@ export function StoryGenerator({
             }
 
             console.log("Extracted video URL:", videoUrl);
-            
-            // Validate URL format 
-            if (!videoUrl || !videoUrl.startsWith('http')) {
+
+            // Validate URL format
+            if (!videoUrl || !videoUrl.startsWith("http")) {
               console.error("Invalid video URL format:", videoUrl);
-              throw new Error("Invalid video URL format. URL must start with http/https.");
+              throw new Error(
+                "Invalid video URL format. URL must start with http/https.",
+              );
             }
-            
+
             // Check for common issues with FAL media URLs
-            if (videoUrl.includes('fal.media') && !videoUrl.includes('.mp4')) {
-              console.warn("Potential FAL media URL issue - URL may not end with .mp4:", videoUrl);
+            if (videoUrl.includes("fal.media") && !videoUrl.includes(".mp4")) {
+              console.warn(
+                "Potential FAL media URL issue - URL may not end with .mp4:",
+                videoUrl,
+              );
             }
-            
+
             // Add a random query parameter to avoid caching issues
-            const uniqueVideoUrl = `${videoUrl}${videoUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+            const uniqueVideoUrl = `${videoUrl}${videoUrl.includes("?") ? "&" : "?"}t=${Date.now()}`;
             console.log("Unique video URL to prevent caching:", uniqueVideoUrl);
           } catch (err) {
             console.error("Error parsing video URL from response:", err);
@@ -969,13 +987,13 @@ export function StoryGenerator({
 
             try {
               // Create a simple test to verify the video URL works
-              const videoTest = document.createElement('video');
+              const videoTest = document.createElement("video");
               videoTest.muted = true;
               videoTest.src = videoUrl;
-              
-              videoTest.addEventListener('loadeddata', async () => {
+
+              videoTest.addEventListener("loadeddata", async () => {
                 console.log("Video URL test successful - video loads properly");
-                
+
                 // Save each video to the gallery as we generate it
                 const savedMedia = await addMedia({
                   url: videoUrl, // Use original URL for database
@@ -997,16 +1015,17 @@ export function StoryGenerator({
                   duration: 3000,
                 });
               });
-              
-              videoTest.addEventListener('error', (e) => {
+
+              videoTest.addEventListener("error", (e) => {
                 console.error("Video URL test failed - cannot load video:", e);
                 toast({
                   title: "Video URL Issue",
-                  description: "The generated video URL may not be valid. Check console for details.",
+                  description:
+                    "The generated video URL may not be valid. Check console for details.",
                   variant: "destructive",
                   duration: 5000,
                 });
-                
+
                 // Still try to save it anyway
                 addMedia({
                   url: videoUrl,
@@ -1014,7 +1033,7 @@ export function StoryGenerator({
                   name: `Scene ${i + 1}: ${sceneDescription.substring(0, 30)}...`,
                 });
               });
-              
+
               // Start loading test
               videoTest.load();
             } catch (err) {
@@ -1025,7 +1044,7 @@ export function StoryGenerator({
                 variant: "destructive",
                 duration: 5000,
               });
-              
+
               // Still try to save it directly
               await addMedia({
                 url: videoUrl,
