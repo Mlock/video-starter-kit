@@ -147,7 +147,8 @@ export const AVAILABLE_ENDPOINTS: ApiInfo[] = [
   {
     endpointId: "fal-ai/luma-dream-machine/ray-2-flash/image-to-video",
     label: "Luma Ray 2 Flash image to video",
-    description: "Ray2 Flash is a fast video generative model capable of creating realistic visuals with natural, coherent motion.",
+    description:
+      "Ray2 Flash is a fast video generative model capable of creating realistic visuals with natural, coherent motion.",
     cost: "",
     category: "video",
     inputAsset: ["image"],
