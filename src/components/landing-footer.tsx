@@ -8,16 +8,15 @@ export default function Footer() {
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-2 max-w-screen-md md:grid-cols-3 gap-8 mx-auto">
           <div className="flex flex-col items-start">
-         
             <Link href="/" className="flex items-center">
-            <Image 
-              src="/traxlogo.svg" 
-              alt="Trax Logo" 
-              width={80} 
-              height={16} 
-              priority
-            />
-          </Link>
+              <Image
+                src="/traxlogo.svg"
+                alt="Trax Logo"
+                width={80}
+                height={16}
+                priority
+              />
+            </Link>
           </div>
 
           <div className="flex flex-col items-center text-center">

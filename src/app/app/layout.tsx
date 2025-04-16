@@ -5,7 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: "Traxs video creator",
-  description: "Traxs is a video creator that allows you to create videos with ease.",
+  description:
+    "Traxs is a video creator that allows you to create videos with ease.",
 };
 
 export default function RootLayout({

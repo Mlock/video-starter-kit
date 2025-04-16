@@ -30,12 +30,12 @@ export default function Hero() {
 
     const interval = setInterval(() => {
       setIsTransitioning(true);
-      
+
       // Wait for fade out before changing text
       setTimeout(() => {
         currentIndex = (currentIndex + 1) % audiences.length;
         setTargetAudience(audiences[currentIndex]);
-        
+
         // Wait a tiny bit after text change before fading back in
         setTimeout(() => {
           setIsTransitioning(false);
@@ -67,7 +67,6 @@ export default function Hero() {
           isLoaded ? "opacity-100" : "opacity-0"
         }`}
       >
-       
         <h1 className="text-6xl sm:text-8xl md:text-9xl font-medium mb-4 tracking-tight">
           TRAXS<sup className="text-xl md:text-2xl align-super">©</sup>
         </h1>
@@ -75,9 +74,9 @@ export default function Hero() {
         <div className="flex flex-col sm:flex-row items-center justify-center text-xl sm:text-2xl text-white/80 mt-4 gap-2 mb-8">
           <span>A video creation platform for</span>
           <span className="font-medium relative min-w-44 px-3 py-1 border border-white/20 rounded-full">
-            <span 
+            <span
               className={`text-white transition-opacity duration-300 ${
-                isTransitioning ? 'opacity-0' : 'opacity-100'
+                isTransitioning ? "opacity-0" : "opacity-100"
               }`}
             >
               {targetAudience}
@@ -86,7 +85,9 @@ export default function Hero() {
         </div>
 
         <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-12">
-          Traxs is a video edtor built for the modern creator. Create stunning videos with our intuitive tools for every day use from reels, to shorts, to ads, the possibilities are endless.
+          Traxs is a video edtor built for the modern creator. Create stunning
+          videos with our intuitive tools for every day use from reels, to
+          shorts, to ads, the possibilities are endless.
         </p>
 
         <div className="flex flex-col md:flex-row items-center justify-center gap-4 mb-16">
@@ -98,15 +99,27 @@ export default function Hero() {
               Try it now
             </Button>
           </Link>
-       
         </div>
       </div>
 
       {/* Scroll indicator */}
       <div className="absolute bottom-10 flex flex-col items-center animate-bounce">
         <span className="text-sm text-white/60">Scroll to explore</span>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mt-2 opacity-60">
-          <path d="M12 5V19M12 19L19 12M12 19L5 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="mt-2 opacity-60"
+        >
+          <path
+            d="M12 5V19M12 19L19 12M12 19L5 12"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </div>
 

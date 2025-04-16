@@ -8,11 +8,11 @@ export default function Header() {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex flex-1">
           <Link href="/" className="flex items-center">
-            <Image 
-              src="/traxlogo.svg" 
-              alt="Trax Logo" 
-              width={100} 
-              height={24} 
+            <Image
+              src="/traxlogo.svg"
+              alt="Trax Logo"
+              width={100}
+              height={24}
               priority
             />
           </Link>
@@ -31,7 +31,6 @@ export default function Header() {
           >
             Community
           </Link>
-       
         </nav>
 
         <div className="flex flex-1 justify-end items-center space-x-4">
