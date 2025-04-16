@@ -93,6 +93,7 @@ export function StoryGenerator({
     url: string;
     type: string;
     name: string;
+    prompt?: string;
   }) => {
     try {
       // Log the exact video URL we're trying to save
@@ -125,6 +126,8 @@ export function StoryGenerator({
         metadata: {
           title: mediaData.name,
           originalUrl: mediaData.url, // Keep a backup of the original URL
+          prompt: mediaData.prompt || "",
+          description: mediaData.prompt || "",
         },
       };
 
@@ -999,6 +1002,7 @@ export function StoryGenerator({
                   url: videoUrl, // Use original URL for database
                   type: "video",
                   name: `Scene ${i + 1}: ${sceneDescription.substring(0, 30)}...`,
+                  prompt: finalPrompt,
                 });
 
                 // Force refresh the gallery data
@@ -1031,6 +1035,7 @@ export function StoryGenerator({
                   url: videoUrl,
                   type: "video",
                   name: `Scene ${i + 1}: ${sceneDescription.substring(0, 30)}...`,
+                  prompt: finalPrompt,
                 });
               });
 
@@ -1050,6 +1055,7 @@ export function StoryGenerator({
                 url: videoUrl,
                 type: "video",
                 name: `Scene ${i + 1}: ${sceneDescription.substring(0, 30)}...`,
+                prompt: finalPrompt,
               });
             }
           } else {

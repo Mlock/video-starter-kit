@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Video } from "lucide-react";
+
+import Image from "next/image";
 
 export default function Footer() {
   return (
@@ -7,15 +8,16 @@ export default function Footer() {
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-2 max-w-screen-md md:grid-cols-3 gap-8 mx-auto">
           <div className="flex flex-col items-start">
-            <div className="flex items-center space-x-2 mb-4">
-              <Video className="w-6 h-6" />
-              <span className="font-semibold">fal.ai</span>
-            </div>
-            <p className="text-sm text-gray-400">
-              Open-source AI video developer
-              <br />
-              starter kit.
-            </p>
+         
+            <Link href="/" className="flex items-center">
+            <Image 
+              src="/traxlogo.svg" 
+              alt="Trax Logo" 
+              width={80} 
+              height={16} 
+              priority
+            />
+          </Link>
           </div>
 
           <div className="flex flex-col items-center text-center">

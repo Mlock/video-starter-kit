@@ -279,7 +279,6 @@ export default function LeftPanel() {
               onClick={() => setStoryGeneratorOpen(true)}
             >
               <BookOpenIcon className="w-4 h-4 opacity-50" />
-              Story
             </Button>
             {mediaItems.length > 0 && (
               <Button
@@ -288,7 +287,6 @@ export default function LeftPanel() {
                 onClick={() => openGenerateDialog()}
               >
                 <SparklesIcon className="w-4 h-4 opacity-50" />
-                Generate...
               </Button>
             )}
           </div>

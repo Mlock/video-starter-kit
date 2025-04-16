@@ -4,8 +4,8 @@ import "../globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: "AI Video Developer Starter Kit | fal.ai",
-  description: "Open-source AI video editor built for developers.",
+  title: "Traxs video creator",
+  description: "Traxs is a video creator that allows you to create videos with ease.",
 };
 
 export default function RootLayout({

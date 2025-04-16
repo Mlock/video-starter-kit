@@ -203,7 +203,7 @@ export function MediaItemRow({
         <div className="flex flex-col items-start justify-center">
           <div className="flex w-full justify-between">
             <h3 className="text-sm font-medium flex flex-row gap-1 items-center">
-              {createElement(trackIcons[data.mediaType], {
+              {createElement(trackIcons[data.mediaType === "img2img" ? "image" : data.mediaType], {
                 className: "w-4 h-4 stroke-1",
               } as React.ComponentProps<
                 (typeof trackIcons)[keyof typeof trackIcons]
@@ -232,7 +232,8 @@ export function MediaItemRow({
           </div>
           {data.mediaType !== "text" && (
             <p className="opacity-40 text-sm line-clamp-1 ">
-              {data.input?.prompt}
+              {/* Check metadata.prompt before falling back to input.prompt */}
+              {data.metadata?.prompt || data.input?.prompt || data.metadata?.description || "No description"}
             </p>
           )}
         </div>

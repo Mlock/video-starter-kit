@@ -28,7 +28,7 @@ export async function generateMetadata(
 
   return {
     title: video.title,
-    description: video.description || "Watch on Video AI Studio",
+    description: video.description || "Watch on Trax Studio",
 
     // Open Graph metadata
     openGraph: {
